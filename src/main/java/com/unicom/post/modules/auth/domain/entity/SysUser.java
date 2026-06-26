@@ -13,7 +13,9 @@ public class SysUser {
     private String passwordHash;
     private String realName;
     private String phone;
-    private String idcard;
+
+    @TableField("idcard")
+    private String idCard;
     private String dataScopeType;
     private Long scopeCityId;
     private Long scopeOutletId;
