@@ -1,0 +1,17 @@
+package com.unicom.post.modules.developer.service;
+
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.baomidou.mybatisplus.extension.service.IService;
+import com.unicom.post.modules.developer.domain.entity.BizDeveloperApply;
+import com.unicom.post.modules.developer.dto.DeveloperApplyAuditRequest;
+import com.unicom.post.modules.developer.dto.DeveloperApplyRequest;
+import com.unicom.post.modules.developer.dto.DeveloperApplyResponse;
+
+public interface DeveloperApplyService extends IService<BizDeveloperApply> {
+    BizDeveloperApply submitApply(DeveloperApplyRequest request);
+    Page<DeveloperApplyResponse> queryApplyList(String status, Long cityId, Long outletId, String keyword,
+                                                Integer pageNo, Integer pageSize, Long currentUserId, String currentUserRole);
+    DeveloperApplyResponse getApplyDetail(Long applyId, Long currentUserId, String currentUserRole);
+    void auditApply(Long applyId, DeveloperApplyAuditRequest request, Long currentUserId, String currentUserRole);
+    void rejectApply(Long applyId, String rejectReason, Long currentUserId);
+}
