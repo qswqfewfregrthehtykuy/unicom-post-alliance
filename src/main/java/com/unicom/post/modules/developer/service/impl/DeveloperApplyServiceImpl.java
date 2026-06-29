@@ -19,7 +19,7 @@ import com.unicom.post.modules.outlet.domain.entity.BizOutlet;
 import com.unicom.post.modules.outlet.service.BizOutletService;
 import com.unicom.post.modules.system.service.SysRoleService;
 import lombok.extern.slf4j.Slf4j;
-import lombok.var;
+//import lombok.var;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
