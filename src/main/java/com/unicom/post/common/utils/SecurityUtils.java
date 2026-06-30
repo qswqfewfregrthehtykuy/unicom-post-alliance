@@ -55,4 +55,14 @@ public class SecurityUtils {
         }
         throw new RuntimeException("无法获取当前用户角色");
     }
+
+
+    public static String getCurrentUsername() {
+        Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        if (principal instanceof String) {
+            return (String) principal;
+        }
+        return null;
+    }
+
 }
