@@ -1,0 +1,9 @@
+package com.unicom.post.modules.org.dto;
+
+import lombok.Data;
+
+@Data
+public class CityDTO {
+    private Long id;
+    private String name;
+}

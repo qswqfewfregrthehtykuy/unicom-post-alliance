@@ -58,6 +58,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         Page<SysUser> page = new Page<>(pageNo, pageSize);
         LambdaQueryWrapper<SysUser> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(SysUser::getIsDeleted, 0);
+
         if (cityId != null) {
             wrapper.eq(SysUser::getScopeCityId, cityId);
         }
@@ -69,7 +70,17 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
                     .or().like(SysUser::getRealName, keyword)
                     .or().like(SysUser::getPhone, keyword));
         }
-        // role过滤较复杂，暂忽略，可后续用子查询
+
+        // ✅ 新增：按角色过滤
+        if (role != null && !role.isEmpty()) {
+            // 使用子查询：用户ID必须在 sys_user_role 中关联了该角色
+            wrapper.inSql(SysUser::getId,
+                    "SELECT user_id FROM sys_user_role ur " +
+                            "INNER JOIN sys_role r ON ur.role_id = r.id " +
+                            "WHERE r.role_code = '" + role + "'"
+            );
+        }
+
         wrapper.orderByDesc(SysUser::getCreatedAt);
         return this.page(page, wrapper);
     }

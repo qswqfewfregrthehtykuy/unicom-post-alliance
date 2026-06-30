@@ -7,11 +7,14 @@ import com.unicom.post.modules.developer.dto.DeveloperApplyAuditRequest;
 import com.unicom.post.modules.developer.dto.DeveloperApplyRequest;
 import com.unicom.post.modules.developer.dto.DeveloperApplyResponse;
 
+import java.util.Map;
+
 public interface DeveloperApplyService extends IService<BizDeveloperApply> {
     BizDeveloperApply submitApply(DeveloperApplyRequest request);
     Page<DeveloperApplyResponse> queryApplyList(String status, Long cityId, Long outletId, String keyword,
                                                 Integer pageNo, Integer pageSize, Long currentUserId, String currentUserRole);
     DeveloperApplyResponse getApplyDetail(Long applyId, Long currentUserId, String currentUserRole);
-    void auditApply(Long applyId, DeveloperApplyAuditRequest request, Long currentUserId, String currentUserRole);
+    Map<String, Object> auditApply(Long applyId, DeveloperApplyAuditRequest request,
+                                   Long currentUserId, String currentUserRole);
     void rejectApply(Long applyId, String rejectReason, Long currentUserId);
 }

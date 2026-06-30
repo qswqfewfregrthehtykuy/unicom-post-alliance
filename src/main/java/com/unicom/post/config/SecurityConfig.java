@@ -4,6 +4,7 @@ import com.unicom.post.common.utils.JwtUtils;
 import com.unicom.post.config.filter.JwtAuthenticationFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -40,6 +41,12 @@ public class SecurityConfig {
                 .and()
                 .authorizeHttpRequests()
                 .antMatchers("/api/v1/auth/login", "/api/v1/developer-applies/**").permitAll()
+                .antMatchers("/api/v1/org/cities", "/api/v1/org/districts/outlets").permitAll()
+                .antMatchers(HttpMethod.POST, "/api/v1/developer-applies").permitAll()
+                .antMatchers("/api/v1/auth/login").permitAll()
+                .antMatchers("/api/v1/org/cities", "/api/v1/org/districts/outlets").permitAll()
+
+
                 .anyRequest().authenticated()
                 .and()
                 .addFilterBefore(new JwtAuthenticationFilter(jwtUtils), UsernamePasswordAuthenticationFilter.class);

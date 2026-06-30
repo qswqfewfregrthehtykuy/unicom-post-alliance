@@ -1,10 +1,10 @@
 package com.unicom.post.config.filter;
 
 import com.unicom.post.common.utils.JwtUtils;
+import com.unicom.post.modules.auth.domain.UserPrincipal;
 import io.jsonwebtoken.Claims;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.filter.OncePerRequestFilter;
 
@@ -13,7 +13,6 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
 
 @Slf4j
@@ -32,24 +31,26 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         if (token != null) {
             Claims claims = jwtUtils.parseToken(token);
             if (claims != null) {
-                String username = claims.getSubject();
                 Long userId = claims.get("userId", Long.class);
-
-                // 👇 从 claims 中提取角色列表
+                String username = claims.getSubject();
+                String realName = claims.get("realName", String.class);
+                String phone = claims.get("phone", String.class);
                 List<String> roles = (List<String>) claims.get("roles");
-                List<SimpleGrantedAuthority> authorities = new ArrayList<>();
-                if (roles != null) {
-                    for (String role : roles) {
-                        authorities.add(new SimpleGrantedAuthority(role));
-                    }
-                } else {
-                    // 兜底：如果没有角色，给一个默认角色，避免无权限
-                    authorities.add(new SimpleGrantedAuthority("ROLE_USER"));
-                }
+                Integer status = claims.get("status", Integer.class);
+
+                // 构建 UserPrincipal（密码为 null 或空，因为已认证）
+                UserPrincipal userPrincipal = new UserPrincipal(
+                        userId,
+                        username,
+                        null,
+                        realName,
+                        phone,
+                        roles,
+                        status != null ? status : 1
+                );
 
                 UsernamePasswordAuthenticationToken auth =
-                        new UsernamePasswordAuthenticationToken(username, null, authorities);
-                auth.setDetails(userId);
+                        new UsernamePasswordAuthenticationToken(userPrincipal, null, userPrincipal.getAuthorities());
                 SecurityContextHolder.getContext().setAuthentication(auth);
             }
         }
