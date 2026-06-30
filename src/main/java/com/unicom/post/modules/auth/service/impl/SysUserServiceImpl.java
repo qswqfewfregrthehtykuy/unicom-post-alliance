@@ -196,4 +196,15 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
                 .eq(SysUser::getIsDeleted, 0);
         return this.getOne(wrapper);
     }
+
+
+    // 在 SysUserServiceImpl 中实现
+    @Override
+    public List<Long> listUserIdsByCityId(Long cityId) {
+        LambdaQueryWrapper<SysUser> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(SysUser::getScopeCityId, cityId)
+                .eq(SysUser::getIsDeleted, 0)
+                .select(SysUser::getId);
+        return this.listObjs(wrapper, obj -> (Long) obj);
+    }
 }
