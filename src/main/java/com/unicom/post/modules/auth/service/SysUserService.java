@@ -22,4 +22,7 @@ public interface SysUserService extends IService<SysUser> {
     void assignRoles(Long userId, List<Long> roleIds);
 
     SysUser getByUsername(String username);
+
+    // 在 SysUserService 接口中添加
+    List<Long> listUserIdsByCityId(Long cityId);
 }
