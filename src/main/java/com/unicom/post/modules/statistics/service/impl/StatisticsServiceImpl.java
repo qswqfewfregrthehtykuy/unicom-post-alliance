@@ -4,7 +4,7 @@ import com.unicom.post.common.constant.RoleConstant;
 import com.unicom.post.common.exception.BusinessException;
 import com.unicom.post.modules.auth.domain.entity.SysUser;
 import com.unicom.post.modules.auth.service.SysUserService;
-import com.unicom.post.modules.statistics.mapper.BizCommissionDetailMapper;
+import com.unicom.post.modules.statistics.mapper.BizCommissionDetailMappera;
 import com.unicom.post.modules.statistics.mapper.BizDevelopmentOrderMappera;
 import com.unicom.post.modules.statistics.dto.StatisticsRequest;
 import com.unicom.post.modules.statistics.service.StatisticsService;
@@ -23,7 +23,7 @@ import java.util.List;
 public class StatisticsServiceImpl implements StatisticsService {
 
     private final BizDevelopmentOrderMappera developmentOrderMapper;
-    private final BizCommissionDetailMapper commissionDetailMapper;
+    private final BizCommissionDetailMappera commissionDetailMapper;
     private final SysUserService userService;
     private final SysRoleService roleService;
 

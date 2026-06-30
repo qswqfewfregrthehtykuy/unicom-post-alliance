@@ -128,7 +128,7 @@ public class BizOrderController {
         Map<String, Object> data = new HashMap<String, Object>();
         data.put("orderId", orderId);
         data.put("leadStatus", order.getLeadStatus());
-        data.put("nextAuditor", "省级");
+//        data.put("nextAuditor", "省级");
 
         return Result.success("审核成功", data);
     }
@@ -156,7 +156,7 @@ public class BizOrderController {
         Map<String, Object> data = new HashMap<String, Object>();
         data.put("orderId", orderId);
         data.put("formalStatus", order.getFormalStatus());
-        data.put("commission", "佣金已生成（模拟）");
+//        data.put("commission", "佣金已生成（模拟）");
 
         return Result.success("审核成功", data);
     }

@@ -12,7 +12,7 @@ import org.apache.ibatis.annotations.Select;
 import java.util.List;
 
 @Mapper
-public interface BizCommissionDetailMapper extends BaseMapper<BizCommissionDetaila> {
+public interface BizCommissionDetailMappera extends BaseMapper<BizCommissionDetaila> {
 
     /**
      * 佣金分组统计（按维度）
