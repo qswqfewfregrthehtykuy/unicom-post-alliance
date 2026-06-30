@@ -187,4 +187,13 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
             userRoleMapper.insertBatch(list);
         }
     }
+
+
+    @Override
+    public SysUser getByUsername(String username) {
+        LambdaQueryWrapper<SysUser> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(SysUser::getUsername, username)
+                .eq(SysUser::getIsDeleted, 0);
+        return this.getOne(wrapper);
+    }
 }

@@ -20,4 +20,6 @@ public interface SysUserService extends IService<SysUser> {
     boolean updateUserStatus(Long userId, Integer status);
     boolean deleteUser(Long userId);
     void assignRoles(Long userId, List<Long> roleIds);
+
+    SysUser getByUsername(String username);
 }

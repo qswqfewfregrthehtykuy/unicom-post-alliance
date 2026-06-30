@@ -6,20 +6,25 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.unicom.post.common.exception.BusinessException;
 import com.unicom.post.modules.auth.service.SysUserService;
 import com.unicom.post.modules.developer.mapper.BizDeveloperMapper;
+import com.unicom.post.modules.order.domain.entity.BizCommissionDetailb;
 import com.unicom.post.modules.order.domain.entity.BizDevelopmentOrder;
 import com.unicom.post.modules.order.dto.OrderAuditRequest;
 import com.unicom.post.modules.order.dto.OrderSubmitRequest;
 import com.unicom.post.modules.order.dto.OrderResponse;
+import com.unicom.post.modules.order.mapper.BizCommissionDetailMapper;
 import com.unicom.post.modules.order.mapper.BizDevelopmentOrderMapper;
 import com.unicom.post.modules.order.service.BizOrderService;
 import com.unicom.post.modules.outlet.domain.entity.BizOutlet;
 import com.unicom.post.modules.outlet.service.BizOutletService;
+import com.unicom.post.modules.system.domain.entity.BizCommissionRule;
+import com.unicom.post.modules.system.service.BizCommissionRuleService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -35,13 +40,20 @@ public class BizOrderServiceImpl extends ServiceImpl<BizDevelopmentOrderMapper, 
     private final BizOutletService outletService;
     private final BizDeveloperMapper developerMapper;
     private final SysUserService userService;
+    private final BizCommissionRuleService commissionRuleService;        // 新增
+    private final BizCommissionDetailMapper commissionDetailMapper;      // 新增
 
     public BizOrderServiceImpl(BizOutletService outletService,
                                BizDeveloperMapper developerMapper,
-                               SysUserService userService) {
+                               SysUserService userService,
+                               BizCommissionRuleService commissionRuleService,
+                               BizCommissionDetailMapper commissionDetailMapper) {
         this.outletService = outletService;
         this.developerMapper = developerMapper;
         this.userService = userService;
+
+        this.commissionRuleService = commissionRuleService;
+        this.commissionDetailMapper = commissionDetailMapper;
     }
 
     @Override
@@ -170,6 +182,7 @@ public class BizOrderServiceImpl extends ServiceImpl<BizDevelopmentOrderMapper, 
             else throw new BusinessException("未知审核级别");
             if ("PROVINCE_APPROVED".equals(newStatus)) {
                 // 省级通过：生成引流佣金（此处预留，后续集成佣金模块）
+                generateCommission(order, "LEAD");
                 log.info("意向单省级通过，生成引流佣金，订单ID: {}", orderId);
             }
         } else {
@@ -225,6 +238,10 @@ public class BizOrderServiceImpl extends ServiceImpl<BizDevelopmentOrderMapper, 
             else throw new BusinessException("未知审核级别");
             if ("PROVINCE_APPROVED".equals(newStatus)) {
                 // 省级通过：生成转正佣金
+
+                generateCommission(order,"FORMAL");
+
+
                 log.info("转正单省级通过，生成转正佣金，订单ID: {}", orderId);
             }
         } else {
@@ -236,6 +253,108 @@ public class BizOrderServiceImpl extends ServiceImpl<BizDevelopmentOrderMapper, 
         order.setRemark(request.getAuditRemark());
         this.updateById(order);
     }
+
+
+
+    /**
+     * 生成佣金明细（支持 LEAD 和 FORMAL 阶段）
+     * @param order 订单实体
+     * @param phase "LEAD" 或 "FORMAL"
+     */
+    private void generateCommission(BizDevelopmentOrder order, String phase) {
+        // 1. 查询匹配的佣金规则
+        BizCommissionRule rule = findMatchingRule(order.getBusinessType(),
+                order.getDevelopSource(), phase);
+        if (rule == null) {
+            throw new BusinessException("未找到匹配的" + ("LEAD".equals(phase) ? "引流" : "转正") + "佣金规则，请联系管理员配置");
+        }
+
+        // 2. 计算各方金额
+        BigDecimal total = rule.getTotalAmount();
+        BigDecimal outletAmount = total.multiply(rule.getOutletRatio());
+        BigDecimal developerAmount = total.multiply(rule.getDeveloperRatio());
+        BigDecimal platformAmount = total.multiply(rule.getPlatformRatio());
+
+        // 3. 构建并插入明细（只插入比例>0的）
+        List<BizCommissionDetailb> details = new ArrayList<>();
+
+        // 网点
+        if (rule.getOutletRatio().compareTo(BigDecimal.ZERO) > 0) {
+            details.add(buildDetail(order, rule, "OUTLET", order.getOutletId(),
+                    rule.getOutletRatio(), outletAmount,phase));
+        }
+        // 发展人（仅当订单有关联发展人且比例>0）
+        if (order.getDeveloperId() != null &&
+                rule.getDeveloperRatio().compareTo(BigDecimal.ZERO) > 0) {
+            details.add(buildDetail(order, rule, "DEVELOPER", order.getDeveloperId(),
+                    rule.getDeveloperRatio(), developerAmount,phase ));
+        }
+        // 平台（比例>0）
+        if (rule.getPlatformRatio().compareTo(BigDecimal.ZERO) > 0) {
+            // 平台 payee_id 可固定为 0 或从系统配置读取
+            details.add(buildDetail(order, rule, "PLATFORM", 0L,
+                    rule.getPlatformRatio(), platformAmount,phase ));
+        }
+
+        if (details.isEmpty()) {
+            log.warn("订单 {} {} 佣金无有效分配比例，规则ID: {}", order.getOrderNo(), phase, rule.getId());
+            return;
+        }
+
+        // 批量插入
+        for (BizCommissionDetailb detail : details) {
+            commissionDetailMapper.insert(detail);
+        }
+    }
+
+    /**
+     * 构建单个佣金明细
+     */
+    private BizCommissionDetailb buildDetail(BizDevelopmentOrder order,
+                                             BizCommissionRule rule,
+                                             String payeeType,
+                                             Long payeeId,
+                                             BigDecimal ratio,
+                                             BigDecimal amount,
+                                             String phase) {
+        BizCommissionDetailb detail = new BizCommissionDetailb();
+        detail.setOrderId(order.getId());
+        detail.setOrderNo(order.getOrderNo());
+        detail.setCommissionPhase(phase);   // 动态传入 "LEAD" 或 "FORMAL"
+        detail.setPayeeType(payeeType);
+        detail.setPayeeId(payeeId);
+        detail.setRuleId(rule.getId());
+        // 快照字段
+        detail.setRuleNameSnapshot(rule.getRuleName());
+        detail.setBusinessTypeSnapshot(rule.getBusinessType());
+        detail.setDevelopSourceSnapshot(rule.getDevelopSource());
+        detail.setTotalAmount(rule.getTotalAmount());
+        detail.setRatio(ratio);
+        detail.setAmount(amount);
+        detail.setStatus("PENDING");
+        detail.setRemark(("LEAD".equals(phase) ? "引流" : "转正") + "省级审核通过自动生成");
+        return detail;
+    }
+
+    /**
+     * 查询当前生效的佣金规则（按业务类型、发展来源、阶段）
+     */
+    private BizCommissionRule findMatchingRule(String businessType, String developSource, String phase) {
+        LocalDate today = LocalDate.now();
+        LambdaQueryWrapper<BizCommissionRule> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(BizCommissionRule::getBusinessType, businessType)
+                .eq(BizCommissionRule::getDevelopSource, developSource)
+                .eq(BizCommissionRule::getCommissionPhase, phase)
+                .eq(BizCommissionRule::getStatus, 1)          // 启用
+                .eq(BizCommissionRule::getIsDeleted, 0)
+                .le(BizCommissionRule::getEffectiveDate, today)
+                .and(w -> w.isNull(BizCommissionRule::getExpiryDate)
+                        .or().ge(BizCommissionRule::getExpiryDate, today))
+                .orderByDesc(BizCommissionRule::getEffectiveDate)  // 取最新生效的
+                .last("LIMIT 1");
+        return commissionRuleService.getOne(wrapper);
+    }
+
 
     @Override
     @Transactional
