@@ -99,7 +99,6 @@
               <span>统计分析</span>
             </template>
             <el-menu-item index="/analysis/screen">数据大屏</el-menu-item>
-            <el-menu-item index="/analysis/charts">图表分析</el-menu-item>
             <el-menu-item index="/analysis/export">导出报表</el-menu-item>
           </el-sub-menu>
 

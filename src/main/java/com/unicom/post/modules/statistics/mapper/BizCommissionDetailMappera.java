@@ -35,7 +35,7 @@ public interface BizCommissionDetailMappera extends BaseMapper<BizCommissionDeta
             "JOIN biz_development_order o ON cd.order_id = o.id " +
             "LEFT JOIN sys_city c ON o.city_id = c.id " +
             "LEFT JOIN sys_district d ON o.city_id = d.city_id " +
-            "LEFT JOIN biz_outlet ot ON o.outlet_id = out.id " +
+            "LEFT JOIN biz_outlet ot ON o.outlet_id = ot.id " +
             "LEFT JOIN biz_developer dev ON o.developer_id = dev.id " +
             "LEFT JOIN sys_user u ON dev.user_id = u.id " +
             "WHERE cd.is_deleted = 0 AND o.is_deleted = 0 " +
