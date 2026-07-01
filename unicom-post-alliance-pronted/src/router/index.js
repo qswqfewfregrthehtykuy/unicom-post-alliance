@@ -116,6 +116,26 @@ const routes = [
                 name: 'FormalAudit',
                 component: () => import('@/views/audit/FormalAudit.vue'),
                 meta: { title: '转正审核', requiresAuth: true }
+            },
+
+            {
+                path: 'analysis/screen',
+                name: 'AnalysisScreen',
+                component: () => import('@/views/analysis/Dashboard.vue'),
+                meta: { title: '数据大屏', requiresAuth: true }
+            },
+            {
+                path: 'analysis/export',
+                name: 'ExportReport',
+                component: () => import('@/views/analysis/Export.vue'),
+                meta: { title: '导出报表', requiresAuth: true }
+            },
+
+            {
+                path: 'system/logs',
+                name: 'SystemLogs',
+                component: () => import('@/views/system/Logs.vue'),
+                meta: { title: '操作日志', requiresAuth: true, roles: ['ROLE_PROVINCE', 'ROLE_CITY'] }
             }
         ]
     }
