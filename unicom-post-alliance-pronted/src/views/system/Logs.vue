@@ -153,7 +153,7 @@ const fetchLogs = async () => {
     const res = await getLogs(params)
     if (res.code === 200) {
       const data = res.data
-      tableData.value = data.records || []
+      tableData.value = data.list || []
       total.value = data.total || 0
       pageNo.value = data.pageNo || 1
       pageSize.value = data.pageSize || 20
