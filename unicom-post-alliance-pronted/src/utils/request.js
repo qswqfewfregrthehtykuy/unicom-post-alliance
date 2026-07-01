@@ -27,6 +27,11 @@ service.interceptors.request.use(
 service.interceptors.response.use(
     (response) => {
         // 对应后端 Result 结构的解析
+
+        // 如果响应类型为 blob，直接返回整个 response 对象
+        if (response.config.responseType === 'blob') {
+            return response
+        }
         const res = response.data
 
         // 如果后端返回的 code 不是 200（或者成功标志），则进行拦截提示

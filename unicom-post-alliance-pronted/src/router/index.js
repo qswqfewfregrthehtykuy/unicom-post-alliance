@@ -74,6 +74,25 @@ const routes = [
                 meta: { title: '发展人列表', requiresAuth: true }
             },
 
+
+            {
+                path: 'commission/rules',
+                name: 'CommissionRule',
+                component: () => import('@/views/commission/RuleManagement.vue'),
+                meta: { title: '佣金规则', requiresAuth: true }
+            },
+
+
+
+
+            // 在 'commission' 子菜单下添加
+            {
+                path: 'commission/details',
+                name: 'CommissionDetails',
+                component: () => import('@/views/commission/CommissionDetails.vue'),
+                meta: { title: '佣金明细', requiresAuth: true }
+            },
+
             {
                 path: 'biz/new',
                 name: 'NewOrder',

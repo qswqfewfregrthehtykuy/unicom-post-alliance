@@ -58,11 +58,16 @@ public class SecurityUtils {
 
 
     public static String getCurrentUsername() {
-        Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        if (principal instanceof String) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return null;
+        }
+        Object principal = authentication.getPrincipal();
+        if (principal instanceof UserPrincipal) {
+            return ((UserPrincipal) principal).getUsername();
+        } else if (principal instanceof String) {
             return (String) principal;
         }
         return null;
     }
-
 }
