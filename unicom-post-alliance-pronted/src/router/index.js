@@ -72,6 +72,31 @@ const routes = [
                 component: () => import('@/views/developer/DeveloperManage.vue'),
                 props: { mode: 'list' },
                 meta: { title: '发展人列表', requiresAuth: true }
+            },
+
+            {
+                path: 'biz/new',
+                name: 'NewOrder',
+                component: () => import('@/views/biz/NewOrder.vue'),
+                meta: { title: '新增业务', requiresAuth: true }
+            },
+            {
+                path: 'biz/records',
+                name: 'OrderList',
+                component: () => import('@/views/biz/OrderList.vue'),
+                meta: { title: '业务记录', requiresAuth: true }
+            },
+            {
+                path: 'audit/intent',
+                name: 'LeadAudit',
+                component: () => import('@/views/audit/LeadAudit.vue'),
+                meta: { title: '意向单审核', requiresAuth: true }
+            },
+            {
+                path: 'audit/formal',
+                name: 'FormalAudit',
+                component: () => import('@/views/audit/FormalAudit.vue'),
+                meta: { title: '转正审核', requiresAuth: true }
             }
         ]
     }

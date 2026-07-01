@@ -1,7 +1,14 @@
 package com.unicom.post.modules.order.controller;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.unicom.post.common.exception.BusinessException;
 import com.unicom.post.common.result.Result;
+import com.unicom.post.common.utils.SecurityUtils;
+import com.unicom.post.modules.auth.domain.entity.SysUser;          // 实体类
+import com.unicom.post.modules.auth.service.SysUserService; // Service
+import com.unicom.post.modules.developer.domain.entity.BizDeveloper;
+import com.unicom.post.modules.developer.mapper.BizDeveloperMapper;
 import com.unicom.post.modules.order.domain.entity.BizDevelopmentOrder;
 import com.unicom.post.modules.order.dto.OrderAuditRequest;
 import com.unicom.post.modules.order.dto.OrderResponse;
@@ -19,9 +26,15 @@ import java.util.Map;
 public class BizOrderController {
 
     private final BizOrderService orderService;
+    private final SysUserService userService;
+    private final BizDeveloperMapper developerMapper;
 
-    public BizOrderController(BizOrderService orderService) {
+    public BizOrderController(BizOrderService orderService,
+                              SysUserService userService,
+                              BizDeveloperMapper developerMapper) {
         this.orderService = orderService;
+        this.userService = userService;
+        this.developerMapper = developerMapper;
     }
 
     /**
@@ -32,10 +45,36 @@ public class BizOrderController {
     public Result<Map<String, Object>> submitOrder(
             @Valid @RequestBody OrderSubmitRequest request) {
 
-        // TODO 后续从 SecurityContext 获取
-        Long currentUserId = 1L;
-        Long outletId = 1L;
+        Long currentUserId = SecurityUtils.getCurrentUserId();
+        String currentUserRole = SecurityUtils.getCurrentRole();
+
+        Long outletId = null;
         Long developerId = null;
+
+        if ("ROLE_OUTLET".equals(currentUserRole)) {
+            // 网点管理员：从数据库查询用户获取 scopeOutletId
+            SysUser user = userService.getById(currentUserId);
+            if (user == null || user.getScopeOutletId() == null) {
+                throw new BusinessException("当前用户未绑定网点，请联系管理员");
+            }
+            outletId = user.getScopeOutletId();
+            // 网点自发展，没有发展人
+            developerId = null;
+        } else if ("ROLE_DEVELOPER".equals(currentUserRole)) {
+            // 发展人：查询关联的发展人记录
+            BizDeveloper developer = developerMapper.selectOne(
+                    new LambdaQueryWrapper<BizDeveloper>()
+                            .eq(BizDeveloper::getUserId, currentUserId)
+                            .eq(BizDeveloper::getIsDeleted, 0)
+            );
+            if (developer == null) {
+                throw new BusinessException("当前用户未关联发展人信息，请联系管理员");
+            }
+            outletId = developer.getOutletId();
+            developerId = developer.getId();
+        } else {
+            throw new BusinessException("当前角色无权提交发展记录");
+        }
 
         BizDevelopmentOrder order = orderService.submitOrder(
                 request,
@@ -43,7 +82,7 @@ public class BizOrderController {
                 outletId,
                 developerId);
 
-        Map<String, Object> data = new HashMap<String, Object>();
+        Map<String, Object> data = new HashMap<>();
         data.put("orderId", order.getId());
         data.put("orderNo", order.getOrderNo());
         data.put("customerPhone", order.getCustomerPhone());
@@ -72,8 +111,8 @@ public class BizOrderController {
             @RequestParam(defaultValue = "1") Integer pageNo,
             @RequestParam(defaultValue = "20") Integer pageSize) {
 
-        Long currentUserId = 1L;
-        String currentUserRole = "ROLE_PROVINCE";
+        Long currentUserId = SecurityUtils.getCurrentUserId();
+        String currentUserRole = SecurityUtils.getCurrentRole();
 
         Page<OrderResponse> page = orderService.queryOrderList(
                 cityId,
@@ -99,9 +138,7 @@ public class BizOrderController {
     @GetMapping("/{orderId}")
     @PreAuthorize("hasAnyRole('PROVINCE','CITY','OUTLET','DEVELOPER')")
     public Result<OrderResponse> getOrderDetail(@PathVariable Long orderId) {
-
         OrderResponse detail = orderService.getOrderDetail(orderId);
-
         return Result.success(detail);
     }
 
@@ -114,8 +151,8 @@ public class BizOrderController {
             @PathVariable Long orderId,
             @Valid @RequestBody OrderAuditRequest request) {
 
-        Long currentUserId = 1L;
-        String currentUserRole = "ROLE_PROVINCE";
+        Long currentUserId = SecurityUtils.getCurrentUserId();
+        String currentUserRole = SecurityUtils.getCurrentRole();
 
         orderService.leadAudit(
                 orderId,
@@ -125,11 +162,9 @@ public class BizOrderController {
 
         BizDevelopmentOrder order = orderService.getById(orderId);
 
-        Map<String, Object> data = new HashMap<String, Object>();
+        Map<String, Object> data = new HashMap<>();
         data.put("orderId", orderId);
         data.put("leadStatus", order.getLeadStatus());
-//        data.put("nextAuditor", "省级");
-
         return Result.success("审核成功", data);
     }
 
@@ -142,8 +177,8 @@ public class BizOrderController {
             @PathVariable Long orderId,
             @Valid @RequestBody OrderAuditRequest request) {
 
-        Long currentUserId = 1L;
-        String currentUserRole = "ROLE_PROVINCE";
+        Long currentUserId = SecurityUtils.getCurrentUserId();
+        String currentUserRole = SecurityUtils.getCurrentRole();
 
         orderService.formalAudit(
                 orderId,
@@ -153,11 +188,9 @@ public class BizOrderController {
 
         BizDevelopmentOrder order = orderService.getById(orderId);
 
-        Map<String, Object> data = new HashMap<String, Object>();
+        Map<String, Object> data = new HashMap<>();
         data.put("orderId", orderId);
         data.put("formalStatus", order.getFormalStatus());
-//        data.put("commission", "佣金已生成（模拟）");
-
         return Result.success("审核成功", data);
     }
 
@@ -173,7 +206,7 @@ public class BizOrderController {
         String auditPhase = body.get("auditPhase");
         String rejectReason = body.get("rejectReason");
 
-        Long currentUserId = 1L;
+        Long currentUserId = SecurityUtils.getCurrentUserId();
 
         orderService.rejectOrder(
                 orderId,

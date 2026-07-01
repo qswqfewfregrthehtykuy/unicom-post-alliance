@@ -109,7 +109,6 @@
               <span>系统管理</span>
             </template>
             <el-menu-item index="/system/logs">操作日志</el-menu-item>
-            <el-menu-item index="/system/dicts">字典管理</el-menu-item>
           </el-sub-menu>
         </el-menu>
       </el-aside>
