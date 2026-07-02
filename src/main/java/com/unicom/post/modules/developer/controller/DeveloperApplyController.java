@@ -1,17 +1,22 @@
 package com.unicom.post.modules.developer.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.unicom.post.common.result.Result;
+import com.unicom.post.common.utils.IpUtils;
 import com.unicom.post.modules.auth.domain.UserPrincipal;
 import com.unicom.post.modules.developer.domain.entity.BizDeveloperApply;
 import com.unicom.post.modules.developer.dto.DeveloperApplyAuditRequest;
 import com.unicom.post.modules.developer.dto.DeveloperApplyRequest;
 import com.unicom.post.modules.developer.dto.DeveloperApplyResponse;
 import com.unicom.post.modules.developer.service.DeveloperApplyService;
+import com.unicom.post.modules.system.service.SysOperationLogService;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+import javax.servlet.http.HttpServletRequest;
 import javax.validation.Valid;
 import java.util.HashMap;
 import java.util.Map;
@@ -21,9 +26,13 @@ import java.util.Map;
 public class DeveloperApplyController {
 
     private final DeveloperApplyService applyService;
+    private final SysOperationLogService operationLogService;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
-    public DeveloperApplyController(DeveloperApplyService applyService) {
+    public DeveloperApplyController(DeveloperApplyService applyService,
+                                     @Qualifier("operationLogService") SysOperationLogService operationLogService) {
         this.applyService = applyService;
+        this.operationLogService = operationLogService;
     }
 
     /**
@@ -31,19 +40,29 @@ public class DeveloperApplyController {
      */
     @PostMapping
     public Result<Map<String, Object>> submitApply(
-            @Valid @RequestBody DeveloperApplyRequest request) {
+            @Valid @RequestBody DeveloperApplyRequest request,
+            HttpServletRequest httpRequest) {
 
-        BizDeveloperApply apply = applyService.submitApply(request);
+        String ip = IpUtils.getClientIp(httpRequest);
+        try {
+            BizDeveloperApply apply = applyService.submitApply(request);
 
-        Map<String, Object> data = new HashMap<>();
-        data.put("applyId", apply.getId());
-        data.put("applyNo", "APPLY-" + System.currentTimeMillis());
-        data.put("applicantPhone", apply.getApplicantPhone());
-        data.put("status", apply.getStatus());
-        data.put("createTime", apply.getCreatedAt());
-        data.put("estimatedReviewTime", "1-3个工作日");
+            Map<String, Object> data = new HashMap<>();
+            data.put("applyId", apply.getId());
+            data.put("applyNo", "APPLY-" + System.currentTimeMillis());
+            data.put("applicantPhone", apply.getApplicantPhone());
+            data.put("status", apply.getStatus());
+            data.put("createTime", apply.getCreatedAt());
+            data.put("estimatedReviewTime", "1-3个工作日");
 
-        return Result.success("申请提交成功，请等待审核", data);
+            operationLogService.log("DEVELOPER_APPLY", "提交发展人申请", apply.getId(),
+                    "申请提交成功", ip, "SUCCESS", null);
+            return Result.success("申请提交成功，请等待审核", data);
+        } catch (Exception e) {
+            operationLogService.log("DEVELOPER_APPLY", "提交发展人申请", null,
+                    "申请提交失败", ip, "FAIL", e.getMessage());
+            throw e;
+        }
     }
 
     /**
@@ -121,7 +140,8 @@ public class DeveloperApplyController {
     public Result<Map<String, Object>> auditApply(
             @PathVariable Long applyId,
             @Valid @RequestBody DeveloperApplyAuditRequest request,
-            Authentication authentication) {
+            Authentication authentication,
+            HttpServletRequest httpRequest) {
 
         if (authentication == null || !authentication.isAuthenticated()) {
             return Result.error(401, "未登录");
@@ -137,10 +157,20 @@ public class DeveloperApplyController {
             return Result.error(403, "用户无有效角色");
         }
 
-        Map<String, Object> result = applyService.auditApply(
-                applyId, request, currentUserId, currentUserRole);
+        String ip = IpUtils.getClientIp(httpRequest);
+        String auditAction = "APPROVED".equals(request.getStatus()) ? "审核通过" : "审核拒绝";
+        try {
+            Map<String, Object> result = applyService.auditApply(
+                    applyId, request, currentUserId, currentUserRole);
 
-        return Result.success("审核操作成功", result);
+            operationLogService.logDetail("DEVELOPER_APPLY", auditAction, applyId, "DeveloperApply",
+                    "审核操作成功", null, toJson(result), ip, "SUCCESS", null);
+            return Result.success("审核操作成功", result);
+        } catch (Exception e) {
+            operationLogService.log("DEVELOPER_APPLY", auditAction, applyId,
+                    "审核操作失败", ip, "FAIL", e.getMessage());
+            throw e;
+        }
     }
 
     /**
@@ -151,7 +181,8 @@ public class DeveloperApplyController {
     public Result<String> rejectApply(
             @PathVariable Long applyId,
             @RequestBody Map<String, String> body,
-            Authentication authentication) {
+            Authentication authentication,
+            HttpServletRequest httpRequest) {
 
         if (authentication == null || !authentication.isAuthenticated()) {
             return Result.error(401, "未登录");
@@ -163,9 +194,25 @@ public class DeveloperApplyController {
         UserPrincipal currentUser = (UserPrincipal) principal;
         Long currentUserId = currentUser.getId();
 
+        String ip = IpUtils.getClientIp(httpRequest);
         String rejectReason = body.get("rejectReason");
-        applyService.rejectApply(applyId, rejectReason, currentUserId);
+        try {
+            applyService.rejectApply(applyId, rejectReason, currentUserId);
+            operationLogService.log("DEVELOPER_APPLY", "拒绝申请", applyId,
+                    "拒绝原因: " + (rejectReason != null ? rejectReason : "未填写"), ip, "SUCCESS", null);
+            return Result.success("申请已拒绝");
+        } catch (Exception e) {
+            operationLogService.log("DEVELOPER_APPLY", "拒绝申请", applyId,
+                    "拒绝申请失败", ip, "FAIL", e.getMessage());
+            throw e;
+        }
+    }
 
-        return Result.success("申请已拒绝");
+    private String toJson(Object obj) {
+        try {
+            return obj != null ? objectMapper.writeValueAsString(obj) : null;
+        } catch (Exception e) {
+            return null;
+        }
     }
 }

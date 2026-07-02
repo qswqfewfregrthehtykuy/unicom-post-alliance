@@ -4,13 +4,14 @@
       <div class="header-left">
         <div class="logo-box">
           <span class="logo-icon">🇨🇳</span>
-          <span class="logo-text">联通邮政商盟触点系统</span>
+          <span class="logo-text">联通代理达人系统</span>
         </div>
       </div>
       <div class="header-right">
         <div class="user-info">
           <el-avatar :size="32" src="https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png" />
-          <span class="username">管理员</span>
+          <span class="username">{{ displayName }}</span>
+          <el-tag v-if="roleLabel" size="small" type="success" effect="plain">{{ roleLabel }}</el-tag>
         </div>
         <el-divider direction="vertical" />
         <el-button type="danger" link @click="handleLogout">
@@ -30,6 +31,7 @@
             text-color="#4a5568"
             active-text-color="#2cc094"
         >
+          <!-- ========== 所有角色可见 ========== -->
           <el-menu-item index="/dashboard">
             <template #title>
               <span class="menu-icon">📊</span>
@@ -37,45 +39,68 @@
             </template>
           </el-menu-item>
 
-          <el-sub-menu index="user">
+          <!-- ========== 个人中心：OUTLET / DEVELOPER / CITY ========== -->
+          <el-menu-item v-if="isAnyRole(['ROLE_OUTLET','ROLE_DEVELOPER','ROLE_CITY'])" index="/profile">
             <template #title>
               <span class="menu-icon">👤</span>
-              <span>用户管理</span>
+              <span>个人中心</span>
+            </template>
+          </el-menu-item>
+
+          <!-- ========== 管理员功能：PROVINCE ========== -->
+          <el-sub-menu v-if="isRole('ROLE_PROVINCE')" index="user">
+            <template #title>
+              <span class="menu-icon">👥</span>
+              <span>账号管理</span>
             </template>
             <el-menu-item index="/user/list">用户列表</el-menu-item>
             <el-menu-item index="/user/role">角色管理</el-menu-item>
           </el-sub-menu>
 
-          <el-sub-menu index="org">
+          <!-- ========== 组织架构：PROVINCE 全部 / CITY 只看网点 ========== -->
+          <el-sub-menu v-if="isAnyRole(['ROLE_PROVINCE','ROLE_CITY'])" index="org">
             <template #title>
               <span class="menu-icon">🏢</span>
               <span>组织架构</span>
             </template>
-            <el-menu-item index="/org/city">地市管理</el-menu-item>
-            <el-menu-item index="/org/district">区县管理</el-menu-item>
+            <el-menu-item v-if="isRole('ROLE_PROVINCE')" index="/org/city">地市管理</el-menu-item>
+            <el-menu-item v-if="isRole('ROLE_PROVINCE')" index="/org/district">区县管理</el-menu-item>
             <el-menu-item index="/org/outlet">网点管理</el-menu-item>
           </el-sub-menu>
 
-          <el-sub-menu index="developer">
+          <!-- ========== 发展人管理：PROVINCE / CITY / OUTLET ========== -->
+          <el-sub-menu v-if="isAnyRole(['ROLE_PROVINCE','ROLE_CITY','ROLE_OUTLET'])" index="developer">
             <template #title>
               <span class="menu-icon">🤝</span>
               <span>发展人管理</span>
             </template>
+            <!-- 公开提交申请：所有角色 + 未登录用户 -->
             <el-menu-item index="/developer/apply">发展人申请</el-menu-item>
-            <el-menu-item index="/developer/audit">发展人审核</el-menu-item>
-            <el-menu-item index="/developer/list">发展人列表</el-menu-item>
+            <!-- 审核：PROVINCE / CITY / OUTLET -->
+            <el-menu-item v-if="isAnyRole(['ROLE_PROVINCE','ROLE_CITY','ROLE_OUTLET'])" index="/developer/audit">发展人审核</el-menu-item>
+            <el-menu-item v-if="isAnyRole(['ROLE_PROVINCE','ROLE_CITY'])" index="/developer/list">发展人列表</el-menu-item>
           </el-sub-menu>
 
-          <el-sub-menu index="biz">
+          <!-- ========== 发展人端：提交申请入口（单独） ========== -->
+          <el-menu-item v-if="isRole('ROLE_DEVELOPER')" index="/developer/apply">
+            <template #title>
+              <span class="menu-icon">📝</span>
+              <span>发展人申请</span>
+            </template>
+          </el-menu-item>
+
+          <!-- ========== 业务发展：OUTLET / DEVELOPER / PROVINCE / CITY ========== -->
+          <el-sub-menu v-if="isAnyRole(['ROLE_PROVINCE','ROLE_CITY','ROLE_OUTLET','ROLE_DEVELOPER'])" index="biz">
             <template #title>
               <span class="menu-icon">📈</span>
               <span>业务发展</span>
             </template>
-            <el-menu-item index="/biz/new">新增业务</el-menu-item>
+            <el-menu-item v-if="isAnyRole(['ROLE_OUTLET','ROLE_DEVELOPER'])" index="/biz/new">新增业务</el-menu-item>
             <el-menu-item index="/biz/records">业务记录</el-menu-item>
           </el-sub-menu>
 
-          <el-sub-menu index="audit">
+          <!-- ========== 审核中心：PROVINCE / CITY / OUTLET ========== -->
+          <el-sub-menu v-if="isAnyRole(['ROLE_PROVINCE','ROLE_CITY','ROLE_OUTLET'])" index="audit">
             <template #title>
               <span class="menu-icon">⚖️</span>
               <span>审核中心</span>
@@ -84,25 +109,28 @@
             <el-menu-item index="/audit/formal">转正审核</el-menu-item>
           </el-sub-menu>
 
-          <el-sub-menu index="commission">
+          <!-- ========== 佣金管理 ========== -->
+          <el-sub-menu v-if="isAnyRole(['ROLE_PROVINCE','ROLE_CITY','ROLE_OUTLET','ROLE_DEVELOPER'])" index="commission">
             <template #title>
               <span class="menu-icon">💰</span>
               <span>佣金管理</span>
             </template>
-            <el-menu-item index="/commission/rules">佣金规则</el-menu-item>
+            <el-menu-item v-if="isAnyRole(['ROLE_PROVINCE','ROLE_CITY'])" index="/commission/rules">佣金规则</el-menu-item>
             <el-menu-item index="/commission/details">佣金明细</el-menu-item>
           </el-sub-menu>
 
-          <el-sub-menu index="analysis">
+          <!-- ========== 统计分析 ========== -->
+          <el-sub-menu v-if="isAnyRole(['ROLE_PROVINCE','ROLE_CITY','ROLE_OUTLET','ROLE_DEVELOPER'])" index="analysis">
             <template #title>
               <span class="menu-icon">🔮</span>
               <span>统计分析</span>
             </template>
             <el-menu-item index="/analysis/screen">数据大屏</el-menu-item>
-            <el-menu-item index="/analysis/export">导出报表</el-menu-item>
+            <el-menu-item v-if="isAnyRole(['ROLE_PROVINCE','ROLE_CITY'])" index="/analysis/export">导出报表</el-menu-item>
           </el-sub-menu>
 
-          <el-sub-menu index="system">
+          <!-- ========== 系统管理：PROVINCE / CITY ========== -->
+          <el-sub-menu v-if="isAnyRole(['ROLE_PROVINCE','ROLE_CITY'])" index="system">
             <template #title>
               <span class="menu-icon">⚙️</span>
               <span>系统管理</span>
@@ -122,18 +150,55 @@
 <script setup>
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useAuthStore } from '@/store/auth'
 
 const route = useRoute()
 const router = useRouter()
+const authStore = useAuthStore()
 
 // 动态高亮当前菜单项
 const activeMenu = computed(() => {
   return route.path === '/' || route.path === '/index' ? '/dashboard' : route.path
 })
 
+// 显示用户名
+const displayName = computed(() => {
+  if (authStore.userInfo && authStore.userInfo.realName) {
+    return authStore.userInfo.realName
+  }
+  if (authStore.userInfo && authStore.userInfo.username) {
+    return authStore.userInfo.username
+  }
+  return '用户'
+})
+
+// 角色中文标签
+const roleLabel = computed(() => {
+  const roleMap = {
+    'ROLE_PROVINCE': '省分管理员',
+    'ROLE_CITY': '地市管理员',
+    'ROLE_OUTLET': '网点管理员',
+    'ROLE_DEVELOPER': '发展人'
+  }
+  for (const role of authStore.roles) {
+    if (roleMap[role]) return roleMap[role]
+  }
+  return ''
+})
+
+// 判断是否为指定角色
+const isRole = (role) => {
+  return authStore.roles.includes(role)
+}
+
+// 判断是否为指定角色之一
+const isAnyRole = (roles) => {
+  return roles.some(role => authStore.roles.includes(role))
+}
+
 // 登出逻辑
-const handleLogout = () => {
-  localStorage.clear()
+const handleLogout = async () => {
+  await authStore.handleLogout()
   router.push('/login')
 }
 </script>

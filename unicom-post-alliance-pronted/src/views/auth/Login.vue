@@ -3,7 +3,7 @@
     <div class="login-card">
       <div class="login-left">
         <div class="left-content">
-          <h2>联通邮政商盟触点系统</h2>
+          <h2>联通代理达人系统</h2>
           <p>高效、便捷、有温度的数字化工作台</p>
         </div>
         <div class="circle circle-1"></div>
@@ -139,11 +139,13 @@
 <script setup>
 import { ref, reactive } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { useRouter } from 'vue-router' // 👈 导入路由驱动
-import { login, submitDeveloperApply, getCities, getDistrictsWithOutlets } from '@/api/auth'
+import { useRouter } from 'vue-router'
+import { useAuthStore } from '@/store/auth'
+import { submitDeveloperApply, getCities, getDistrictsWithOutlets } from '@/api/auth'
 
 // 初始化路由
 const router = useRouter()
+const authStore = useAuthStore()
 
 // --- 1. 登录模块原逻辑数据 ---
 const loginFormRef = ref(null)
@@ -157,28 +159,20 @@ const loginRules = {
   password: [{ required: true, message: '请输入密码', trigger: 'blur' }]
 }
 
-const handleLogin = () => {
-  loginFormRef.value.validate((valid) => {
-    if (valid) {
-      loading.value = true
-      login(loginForm)
-          .then((res) => {
-            // 规范性操作：如果后端返回了 token，先将其存入本地
-            if (res.data && res.data.token) {
-              localStorage.setItem('token', res.data.token)
-            }
-            ElMessage.success('登录成功')
-            // 👈 核心改进：成功弹出提示后，立即切向主页大屏
-            router.push('/dashboard')
-          })
-          .catch((err) => {
-            ElMessage.error(err.response?.data?.message || '登录失败，请检查用户名或密码')
-          })
-          .finally(() => {
-            loading.value = false
-          })
-    }
-  })
+const handleLogin = async () => {
+  const valid = await loginFormRef.value.validate().catch(() => false)
+  if (!valid) return
+
+  loading.value = true
+  try {
+    await authStore.handleLogin(loginForm)
+    ElMessage.success('登录成功')
+    router.push('/dashboard')
+  } catch (err) {
+    ElMessage.error(err.response?.data?.message || '登录失败，请检查用户名或密码')
+  } finally {
+    loading.value = false
+  }
 }
 
 // --- 2. 级联选择器配置（完美解决市级/区县空白，直接读取二级缓存数据） ---

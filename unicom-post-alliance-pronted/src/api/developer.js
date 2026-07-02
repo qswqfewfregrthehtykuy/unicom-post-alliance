@@ -38,3 +38,13 @@ export function rejectApply(applyId, data) {
         data
     })
 }
+
+/**
+ * 获取当前发展人的个人资料（含网点、等级、累计数据）
+ */
+export function getDeveloperProfile() {
+    return request({
+        url: '/api/v1/developer/profile',
+        method: 'get'
+    })
+}

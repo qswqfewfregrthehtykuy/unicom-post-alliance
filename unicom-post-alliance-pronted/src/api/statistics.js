@@ -1,6 +1,16 @@
 import request from '@/utils/request'
 
 /**
+ * 首页仪表盘数据（根据角色自动返回不同维度的汇总数据）
+ */
+export function getDashboard() {
+    return request({
+        url: '/api/v1/statistics/dashboard',
+        method: 'get'
+    })
+}
+
+/**
  * 8.1 发展量统计
  * @param {Object} params - 查询参数
  * @param {string} params.dimension - CITY|DISTRICT|OUTLET|DEVELOPER|DATE
@@ -44,6 +54,26 @@ export function getRanking(params) {
         url: '/api/v1/statistics/ranking',
         method: 'get',
         params
+    })
+}
+
+/**
+ * 业务类型分布（饼图数据）
+ */
+export function getBusinessBreakdown() {
+    return request({
+        url: '/api/v1/statistics/business-breakdown',
+        method: 'get'
+    })
+}
+
+/**
+ * 最近审核动态（Dashboard 审核流表格）
+ */
+export function getRecentAudits() {
+    return request({
+        url: '/api/v1/statistics/recent-audits',
+        method: 'get'
     })
 }
 

@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.*;
 
 import javax.validation.Valid;
 import java.time.LocalDate;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/statistics")
@@ -22,6 +23,33 @@ public class StatisticsController {
 
     public StatisticsController(StatisticsService statisticsService) {
         this.statisticsService = statisticsService;
+    }
+
+    /**
+     * 首页仪表盘数据（根据角色返回不同维度的汇总数据）
+     */
+    @GetMapping("/dashboard")
+    @PreAuthorize("hasAnyRole('PROVINCE','CITY','OUTLET','DEVELOPER')")
+    public Result<?> dashboard() {
+        return Result.success(statisticsService.getDashboard());
+    }
+
+    /**
+     * 业务类型分布（饼图数据）
+     */
+    @GetMapping("/business-breakdown")
+    @PreAuthorize("hasAnyRole('PROVINCE','CITY','OUTLET','DEVELOPER')")
+    public Result<List<?>> businessBreakdown() {
+        return Result.success(statisticsService.getBusinessBreakdown());
+    }
+
+    /**
+     * 最近审核动态（Dashboard 审核流表格）
+     */
+    @GetMapping("/recent-audits")
+    @PreAuthorize("hasAnyRole('PROVINCE','CITY','OUTLET')")
+    public Result<List<?>> recentAudits() {
+        return Result.success(statisticsService.getRecentAudits());
     }
 
     /**
