@@ -26,7 +26,7 @@
         <el-form-item label="业务类型">
           <el-input v-model="filter.businessType" placeholder="可选业务类型" @change="onSearch" />
         </el-form-item>
-        <el-form-item label="排行类型">
+        <el-form-item v-if="isAdminLike" label="排行类型">
           <el-select v-model="filter.rankType" @change="fetchRanking">
             <el-option label="网点排行" value="OUTLET" />
             <el-option label="发展人排行" value="DEVELOPER" />
@@ -99,7 +99,7 @@
     </el-row>
 
     <el-row :gutter="20" class="stats-row">
-      <el-col :span="12">
+      <el-col v-if="isAdminLike" :span="12">
         <el-card shadow="hover" class="stat-card">
           <template #header>
             <span>发展排行榜（{{ filter.rankType === 'OUTLET' ? '网点' : '发展人' }}）</span>
@@ -125,7 +125,7 @@
         </el-card>
       </el-col>
 
-      <el-col :span="12">
+      <el-col :span="isAdminLike ? 12 : 24">
         <el-card shadow="hover" class="stat-card">
           <template #header>
             <span>趋势分析（{{ filter.metric === 'DEVELOPMENT_COUNT' ? '发展量' : '佣金金额' }}）</span>
@@ -138,7 +138,8 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, nextTick, watch } from 'vue'
+import { ref, reactive, computed, onMounted, nextTick, watch } from 'vue'
+import { useAuthStore } from '@/store/auth'
 import * as echarts from 'echarts'
 import {
   getDevelopmentStatistics,
@@ -146,6 +147,11 @@ import {
   getRanking,
   getTrend
 } from '@/api/statistics'
+
+const authStore = useAuthStore()
+const isAdminLike = computed(() =>
+  authStore.roles.includes('ROLE_PROVINCE') || authStore.roles.includes('ROLE_CITY')
+)
 
 // -------- 筛选条件 --------
 const filter = reactive({
@@ -303,7 +309,9 @@ const renderTrendChart = () => {
 const onSearch = () => {
   fetchDevelopment()
   fetchCommission()
-  fetchRanking()
+  if (isAdminLike.value) {
+    fetchRanking()
+  }
   fetchTrend()
 }
 
