@@ -27,9 +27,9 @@
           <el-select v-model="form.districtId" placeholder="请选择区县" @change="onDistrictChange" filterable>
             <el-option
                 v-for="dist in districtOptions"
-                :key="dist.districtId"
-                :label="dist.districtName"
-                :value="dist.districtId"
+                :key="dist.id"
+                :label="dist.name"
+                :value="dist.id"
             />
           </el-select>
         </el-form-item>
@@ -38,9 +38,9 @@
           <el-select v-model="form.outletId" placeholder="请选择网点" filterable>
             <el-option
                 v-for="outlet in outletOptions"
-                :key="outlet.outletId"
-                :label="outlet.outletName"
-                :value="outlet.outletId"
+                :key="outlet.id"
+                :label="outlet.name"
+                :value="outlet.id"
             />
           </el-select>
         </el-form-item>
@@ -127,8 +127,8 @@ const onCityChange = async (cityId) => {
     const dists = []
     const map = new Map()
     data.forEach(item => {
-      dists.push({ districtId: item.districtId, districtName: item.districtName })
-      map.set(item.districtId, item.outlets || [])
+      dists.push({ id: item.id, name: item.name })
+      map.set(item.id, item.outlets || [])
     })
     districtOptions.value = dists
     districtMap.value = map

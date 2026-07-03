@@ -62,9 +62,9 @@ public interface BizDevelopmentOrderMappera extends BaseMapper<BizDevelopmentOrd
     @Select("<script>" +
             "SELECT " +
             "  <choose> " +
-            "    <when test=\"rankType == 'OUTLET'\"> o.outlet_id AS dimensionId, ot.outlet_name AS dimensionName </when> " +
-            "    <when test=\"rankType == 'DEVELOPER'\"> o.developer_id AS dimensionId, u.real_name AS dimensionName </when> " +
-            "    <otherwise> o.outlet_id AS dimensionId, ot.outlet_name AS dimensionName </otherwise> " +
+            "    <when test=\"rankType == 'OUTLET'\"> o.outlet_id AS dimensionId, ot.outlet_name AS name </when> " +
+            "    <when test=\"rankType == 'DEVELOPER'\"> o.developer_id AS dimensionId, u.real_name AS name </when> " +
+            "    <otherwise> o.outlet_id AS dimensionId, ot.outlet_name AS name </otherwise> " +
             "  </choose> " +
             "  , COUNT(1) AS developmentCount " +
             "  , COALESCE(SUM(cd.amount), 0) AS commissionAmount " +

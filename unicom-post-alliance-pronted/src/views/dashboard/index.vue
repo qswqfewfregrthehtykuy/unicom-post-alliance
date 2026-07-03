@@ -361,7 +361,7 @@ const renderAdminCharts = () => {
       xAxis: { type:'value', boundaryGap:[0,0.01] },
       yAxis: { type:'category',
         data: hasData
-          ? rankingData.value.map(d => d.dimensionName).reverse()
+          ? rankingData.value.map(d => d.name).reverse()
           : ['高新代理点','红谷滩营业厅','莲塘邮政所','西湖合作店','浔阳代办点','青山湖一店','章贡联合厅','月湖代理点','信州触点厅','八一广场网点'].reverse()
       },
       series: [{
