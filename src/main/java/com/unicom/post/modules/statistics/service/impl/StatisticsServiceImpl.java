@@ -6,11 +6,15 @@ import com.unicom.post.common.exception.BusinessException;
 import com.unicom.post.modules.auth.domain.UserPrincipal;
 import com.unicom.post.modules.auth.domain.entity.SysUser;
 import com.unicom.post.modules.auth.service.SysUserService;
+import com.unicom.post.modules.developer.domain.entity.BizAuditLog;
 import com.unicom.post.modules.developer.domain.entity.BizDeveloper;
 import com.unicom.post.modules.developer.domain.entity.BizDeveloperApply;
+import com.unicom.post.modules.developer.mapper.BizAuditLogMapper;
 import com.unicom.post.modules.developer.mapper.BizDeveloperApplyMapper;
 import com.unicom.post.modules.developer.mapper.BizDeveloperMapper;
+import com.unicom.post.modules.order.domain.entity.BizCommissionDetailb;
 import com.unicom.post.modules.order.domain.entity.BizDevelopmentOrder;
+import com.unicom.post.modules.order.mapper.BizCommissionDetailMapper;
 import com.unicom.post.modules.order.mapper.BizDevelopmentOrderMapper;
 import com.unicom.post.modules.outlet.domain.entity.BizOutlet;
 import com.unicom.post.modules.outlet.mapper.BizOutletMapper;
@@ -43,6 +47,8 @@ public class StatisticsServiceImpl implements StatisticsService {
     private final BizOutletMapper outletMapper;
     private final BizDevelopmentOrderMapper orderMapper;
     private final BizDeveloperApplyMapper developerApplyMapper;
+    private final BizCommissionDetailMapper bizCommissionDetailMapper;
+    private final BizAuditLogMapper auditLogMapper;
 
     @Override
     public DashboardVO getDashboard() {
@@ -134,12 +140,15 @@ public class StatisticsServiceImpl implements StatisticsService {
 
     @Override
     public List<RecentAuditVO> getRecentAudits() {
-        // 查询最近10条审核记录
-        LambdaQueryWrapper<BizDeveloperApply> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(BizDeveloperApply::getIsDeleted, 0)
-                .orderByDesc(BizDeveloperApply::getCreatedAt)
+        List<RecentAuditVO> result = new ArrayList<>();
+        DateTimeFormatter fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+
+        // 1. 查询最近10条发展人申请
+        LambdaQueryWrapper<BizDeveloperApply> applyWrapper = new LambdaQueryWrapper<>();
+        applyWrapper.eq(BizDeveloperApply::getIsDeleted, 0)
+                .orderByDesc(BizDeveloperApply::getUpdatedAt)
                 .last("LIMIT 10");
-        List<BizDeveloperApply> applies = developerApplyMapper.selectList(wrapper);
+        List<BizDeveloperApply> applies = developerApplyMapper.selectList(applyWrapper);
 
         // 批量查询网点名称
         Set<Long> outletIds = applies.stream().map(BizDeveloperApply::getOutletId).collect(Collectors.toSet());
@@ -151,7 +160,6 @@ public class StatisticsServiceImpl implements StatisticsService {
             }
         }
 
-        // 状态映射
         Map<String, String> statusMap = new LinkedHashMap<>();
         statusMap.put("PENDING", "待审核");
         statusMap.put("OUTLET_APPROVED", "网点一审通过");
@@ -159,9 +167,7 @@ public class StatisticsServiceImpl implements StatisticsService {
         statusMap.put("PROVINCE_APPROVED", "省级终审完毕");
         statusMap.put("REJECTED", "驳回重填");
 
-        DateTimeFormatter fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
-
-        return applies.stream().map(a -> {
+        for (BizDeveloperApply a : applies) {
             RecentAuditVO vo = new RecentAuditVO();
             vo.setApplyId(a.getId());
             vo.setApplyNo("APPLY-" + a.getId());
@@ -170,49 +176,82 @@ public class StatisticsServiceImpl implements StatisticsService {
             vo.setDeveloperType(a.getDeveloperType());
             vo.setOutletName(outletNameMap.getOrDefault(a.getOutletId(), "未知网点"));
             vo.setStatus(statusMap.getOrDefault(a.getStatus(), a.getStatus()));
-            vo.setCreatedAt(a.getCreatedAt() != null ? a.getCreatedAt().format(fmt) : "");
-            return vo;
-        }).collect(Collectors.toList());
+            vo.setCreatedAt(a.getUpdatedAt() != null ? a.getUpdatedAt().format(fmt) : "");
+            result.add(vo);
+        }
+
+        // 2. 查询最近10条订单审核日志作为补充
+        LambdaQueryWrapper<BizAuditLog> auditWrapper = new LambdaQueryWrapper<>();
+        auditWrapper.eq(BizAuditLog::getTargetType, "ORDER")
+                .orderByDesc(BizAuditLog::getCreatedAt)
+                .last("LIMIT 5");
+        List<BizAuditLog> orderAudits = auditLogMapper.selectList(auditWrapper);
+
+        for (BizAuditLog audit : orderAudits) {
+            RecentAuditVO vo = new RecentAuditVO();
+            vo.setApplyId(audit.getTargetId());
+            vo.setApplyNo("ORDER-" + audit.getTargetId());
+            vo.setApplicantName(audit.getAuditorName());
+            vo.setApplicantPhone("");
+            vo.setDeveloperType("ORDER_AUDIT");
+            vo.setOutletName(audit.getAuditLevel() + "级审核");
+            vo.setStatus("APPROVED".equals(audit.getAuditStatus()) ? "审核通过" : "已拒绝");
+            vo.setCreatedAt(audit.getCreatedAt() != null ? audit.getCreatedAt().format(fmt) : "");
+            result.add(vo);
+        }
+
+        // 按时间倒序排列，取前10条
+        result.sort((a, b) -> {
+            String ta = a.getCreatedAt() != null ? a.getCreatedAt() : "";
+            String tb = b.getCreatedAt() != null ? b.getCreatedAt() : "";
+            return tb.compareTo(ta);
+        });
+        if (result.size() > 10) {
+            result = result.subList(0, 10);
+        }
+        return result;
     }
 
     private void fillProvinceDashboard(DashboardVO vo, String todayStart, String monthStart, String todayEnd) {
         vo.setTodayNewDevelopers(countDevelopers(null, todayStart, todayEnd));
         vo.setMonthOrderCount(countOrders(null, null, monthStart, null));
-        vo.setTodayCommission(BigDecimal.valueOf(16320)); // 默认值，实际应从DB统计
+        vo.setTodayCommission(queryCommissionAmount(null, null, monthStart, null));
         vo.setOutletCount(countOutlets(null));
-        vo.setDeveloperTrend("↑ 12%");
-        vo.setOrderTrend("↑ 8.5%");
-        vo.setCommissionTrend("↑ 15%");
+        vo.setDeveloperTrend(calcTrend(countDevelopers(null, monthStart, todayEnd),
+                countDevelopers(null, getPrevMonthStart(), monthStart)));
+        vo.setOrderTrend(calcTrend(countOrders(null, null, monthStart, null),
+                countOrders(null, null, getPrevMonthStart(), monthStart)));
+        vo.setCommissionTrend(calcCommissionTrend(null, null, monthStart, null));
     }
 
     private void fillCityDashboard(DashboardVO vo, Long cityId, String todayStart, String monthStart, String todayEnd) {
         vo.setTodayNewDevelopers(countDevelopersByCity(cityId));
         vo.setMonthOrderCount(countOrders(cityId, null, monthStart, null));
-        vo.setTodayCommission(BigDecimal.valueOf(8420));
+        vo.setTodayCommission(queryCommissionAmount(cityId, null, monthStart, null));
         vo.setOutletCount(countOutlets(cityId));
-        vo.setDeveloperTrend("↑ 8%");
-        vo.setOrderTrend("↑ 5%");
-        vo.setCommissionTrend("↑ 10%");
+        vo.setDeveloperTrend("—");
+        vo.setOrderTrend("—");
+        vo.setCommissionTrend("—");
     }
 
     private void fillOutletDashboard(DashboardVO vo, Long outletId, String todayStart, String monthStart, String todayEnd) {
         vo.setTodayNewDevelopers(countDevelopersByOutlet(outletId));
         vo.setMonthOrderCount(countOrders(null, outletId, monthStart, null));
-        vo.setTodayCommission(BigDecimal.valueOf(2350));
+        vo.setTodayCommission(queryCommissionAmount(null, outletId, monthStart, null));
         vo.setOutletCount(countPendingOrders(outletId));
-        vo.setDeveloperTrend("持平");
-        vo.setOrderTrend("↑ 3%");
-        vo.setCommissionTrend("↑ 6%");
+        vo.setDeveloperTrend("—");
+        vo.setOrderTrend("—");
+        vo.setCommissionTrend("—");
     }
 
     private void fillDeveloperDashboard(DashboardVO vo, Long developerId, String todayStart, String monthStart, String todayEnd) {
-        vo.setTodayNewDevelopers(countOrdersByDeveloper(developerId, null, null)); // 累计发展
-        vo.setMonthOrderCount(countOrdersByDeveloper(developerId, monthStart, null)); // 本月
-        vo.setTodayCommission(BigDecimal.valueOf(1280)); // 累计佣金
-        vo.setOutletCount(countPendingOrdersByDeveloper(developerId)); // 待审核
-        vo.setDeveloperTrend("↑ 5户");
-        vo.setOrderTrend("持平");
-        vo.setCommissionTrend("↑ 12%");
+        vo.setTodayNewDevelopers(countOrdersByDeveloper(developerId, null, null));
+        vo.setMonthOrderCount(countOrdersByDeveloper(developerId, monthStart, null));
+        vo.setTodayCommission(queryCommissionByDeveloper(developerId, null, null));
+        vo.setOutletCount(countPendingOrdersByDeveloper(developerId));
+        vo.setDeveloperTrend("—");
+        vo.setOrderTrend("—");
+        vo.setCommissionTrend("—");
     }
 
     // === 辅助查询方法 ===
@@ -284,6 +323,71 @@ public class StatisticsServiceImpl implements StatisticsService {
         wrapper.eq(BizDeveloper::getUserId, userId).eq(BizDeveloper::getIsDeleted, 0);
         BizDeveloper developer = developerMapper.selectOne(wrapper);
         return developer != null ? developer.getId() : 0L;
+    }
+
+    /**
+     * 查询佣金总额（支持按城市或网点过滤）
+     */
+    private BigDecimal queryCommissionAmount(Long cityId, Long outletId, String startTime, String endTime) {
+        LambdaQueryWrapper<BizCommissionDetailb> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(BizCommissionDetailb::getIsDeleted, 0);
+        if (cityId != null) {
+            wrapper.apply("order_id IN (SELECT id FROM biz_development_order WHERE city_id = {0} AND is_deleted = 0)", cityId);
+        }
+        if (outletId != null) {
+            wrapper.apply("order_id IN (SELECT id FROM biz_development_order WHERE outlet_id = {0} AND is_deleted = 0)", outletId);
+        }
+        if (startTime != null) wrapper.ge(BizCommissionDetailb::getCreatedAt, startTime);
+        if (endTime != null) wrapper.le(BizCommissionDetailb::getCreatedAt, endTime);
+        List<BizCommissionDetailb> details = bizCommissionDetailMapper.selectList(wrapper);
+        return details.stream().map(BizCommissionDetailb::getAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    /**
+     * 查询发展人的佣金总额
+     */
+    private BigDecimal queryCommissionByDeveloper(Long developerId, String startTime, String endTime) {
+        LambdaQueryWrapper<BizCommissionDetailb> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(BizCommissionDetailb::getPayeeType, "DEVELOPER")
+                .eq(BizCommissionDetailb::getPayeeId, developerId)
+                .eq(BizCommissionDetailb::getIsDeleted, 0);
+        if (startTime != null) wrapper.ge(BizCommissionDetailb::getCreatedAt, startTime);
+        if (endTime != null) wrapper.le(BizCommissionDetailb::getCreatedAt, endTime);
+        List<BizCommissionDetailb> details = bizCommissionDetailMapper.selectList(wrapper);
+        return details.stream().map(BizCommissionDetailb::getAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    /**
+     * 计算趋势百分比
+     */
+    private String calcTrend(long current, long previous) {
+        if (previous == 0 && current == 0) return "—";
+        if (previous == 0) return "↑ 100%";
+        double pct = (double) (current - previous) / previous * 100;
+        if (pct > 0) return "↑ " + String.format("%.1f%%", pct);
+        if (pct < 0) return "↓ " + String.format("%.1f%%", Math.abs(pct));
+        return "持平";
+    }
+
+    /**
+     * 计算佣金趋势百分比
+     */
+    private String calcCommissionTrend(Long cityId, Long outletId, String startTime, String endTime) {
+        BigDecimal current = queryCommissionAmount(cityId, outletId, startTime, endTime);
+        BigDecimal previous = queryCommissionAmount(cityId, outletId, getPrevMonthStart(), startTime);
+        if (previous.compareTo(BigDecimal.ZERO) == 0 && current.compareTo(BigDecimal.ZERO) == 0) return "—";
+        if (previous.compareTo(BigDecimal.ZERO) == 0) return "↑ 100%";
+        double pct = current.subtract(previous).divide(previous, 4, java.math.RoundingMode.HALF_UP)
+                .multiply(BigDecimal.valueOf(100)).doubleValue();
+        if (pct > 0) return "↑ " + String.format("%.1f%%", pct);
+        if (pct < 0) return "↓ " + String.format("%.1f%%", Math.abs(pct));
+        return "持平";
+    }
+
+    private String getPrevMonthStart() {
+        return LocalDate.now().minusMonths(1).withDayOfMonth(1).format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
     }
 
     /**

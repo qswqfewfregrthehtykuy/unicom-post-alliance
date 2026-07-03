@@ -77,10 +77,13 @@
           </template>
         </el-table-column>
         <el-table-column prop="createTime" label="创建时间" width="170" align="center" />
-        <el-table-column label="操作" width="160" align="center" fixed="right">
+        <el-table-column label="操作" width="240" align="center" fixed="right">
           <template #default="scope">
             <el-button type="primary" link size="small" @click="openDialog('edit', scope.row)">
               编辑
+            </el-button>
+            <el-button type="warning" link size="small" @click="openResetDialog(scope.row)">
+              重置密码
             </el-button>
             <el-button type="danger" link size="small" @click="handleDelete(scope.row)">
               删除
@@ -160,13 +163,37 @@
         </span>
       </template>
     </el-dialog>
+
+    <!-- 重置密码弹窗 -->
+    <el-dialog title="重置用户密码" v-model="resetDialogVisible" width="480px" @close="closeResetDialog">
+      <el-form :model="resetForm" ref="resetFormRef" label-width="100px">
+        <el-form-item label="目标用户">
+          <el-tag type="info">{{ resetForm.username }}（{{ resetForm.realName }}）</el-tag>
+        </el-form-item>
+        <el-form-item label="重置方式" prop="resetType">
+          <el-radio-group v-model="resetForm.resetType">
+            <el-radio value="AUTO">自动生成（12位随机密码+短信通知）</el-radio>
+            <el-radio value="MANUAL">手动指定</el-radio>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item v-if="resetForm.resetType === 'MANUAL'" label="新密码" prop="newPassword">
+          <el-input v-model="resetForm.newPassword" type="password" show-password
+                    placeholder="至少8位，包含大小写字母、数字、特殊符号" />
+        </el-form-item>
+        <el-alert v-if="resetResult" :title="resetResult" type="success" :closable="false" show-icon style="margin-top: 10px" />
+      </el-form>
+      <template #footer>
+        <el-button @click="resetDialogVisible = false">取 消</el-button>
+        <el-button type="primary" :loading="resetLoading" @click="handleResetSubmit">确认重置</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { getUserList, createUser, updateUser, updateUserStatus, deleteUser } from '@/api/auth' // 👈 统一引入
+import { getUserList, createUser, updateUser, updateUserStatus, deleteUser, resetPassword } from '@/api/auth'
 
 // --- 响应式变量 ---
 const loading = ref(false)
@@ -277,6 +304,56 @@ const openDialog = (type, row = null) => {
 }
 
 const closeDialog = () => { if (userFormRef.value) userFormRef.value.resetFields() }
+
+// --- 重置密码 ---
+const resetDialogVisible = ref(false)
+const resetLoading = ref(false)
+const resetResult = ref('')
+const resetFormRef = ref(null)
+const resetForm = reactive({ userId: null, username: '', realName: '', resetType: 'AUTO', newPassword: '' })
+
+const openResetDialog = (row) => {
+  resetDialogVisible.value = true
+  resetResult.value = ''
+  Object.assign(resetForm, {
+    userId: row.id, username: row.username, realName: row.realName,
+    resetType: 'AUTO', newPassword: ''
+  })
+}
+
+const closeResetDialog = () => {
+  resetDialogVisible.value = false
+  resetResult.value = ''
+}
+
+const handleResetSubmit = () => {
+  if (resetForm.resetType === 'MANUAL' && !resetForm.newPassword) {
+    ElMessage.warning('手动模式需要输入新密码')
+    return
+  }
+  if (resetForm.resetType === 'MANUAL' && resetForm.newPassword.length < 8) {
+    ElMessage.warning('新密码至少8位')
+    return
+  }
+  resetLoading.value = true
+  resetResult.value = ''
+  resetPassword(resetForm.userId, {
+    resetType: resetForm.resetType,
+    newPassword: resetForm.resetType === 'MANUAL' ? resetForm.newPassword : undefined
+  }).then(res => {
+    const data = res.data || res
+    if (data.tempPassword) {
+      resetResult.value = `密码已重置！临时密码：${data.tempPassword}（请告知用户，此密码仅显示一次）`
+    } else {
+      resetResult.value = '密码重置成功'
+    }
+    ElMessage.success('密码重置成功')
+    fetchUserList()
+  }).catch(err => {
+    ElMessage.error(err.response?.data?.msg || '密码重置失败')
+  }).finally(() => { resetLoading.value = false })
+}
+
 const formatRole = (code) => { const target = roleOptions.value.find(item => item.roleCode === code); return target ? target.roleName : code; }
 const getScopeTypeTag = (type) => { if (type === 'PROVINCE') return 'danger'; if (type === 'CITY') return 'warning'; if (type === 'OUTLET') return 'success'; return 'info'; }
 

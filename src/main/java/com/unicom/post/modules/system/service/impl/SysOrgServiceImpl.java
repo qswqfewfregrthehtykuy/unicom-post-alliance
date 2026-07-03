@@ -123,6 +123,12 @@ public class SysOrgServiceImpl extends ServiceImpl<SysOrgMapper, SysOrg> impleme
         if (!CollectionUtils.isEmpty(children)) {
             throw new BusinessException("该组织下还有下级，请先删除下级");
         }
-        return this.removeById(id);
+        SysOrg org = this.getById(id);
+        if (org == null) {
+            throw new BusinessException("组织不存在");
+        }
+        org.setIsDeleted(1);
+        org.setStatus(0);
+        return this.updateById(org);
     }
 }

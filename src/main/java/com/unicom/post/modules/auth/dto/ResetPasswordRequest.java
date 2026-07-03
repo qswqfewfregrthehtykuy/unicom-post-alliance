@@ -7,4 +7,6 @@ import javax.validation.constraints.NotBlank;
 public class ResetPasswordRequest {
     @NotBlank
     private String resetType; // AUTO | MANUAL
+
+    private String newPassword; // MANUAL模式时指定新密码
 }

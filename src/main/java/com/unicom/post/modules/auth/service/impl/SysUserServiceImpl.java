@@ -71,14 +71,11 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
                     .or().like(SysUser::getPhone, keyword));
         }
 
-        // ✅ 新增：按角色过滤
+        // 按角色过滤：使用 EXISTS 子查询（参数化，防止SQL注入）
         if (role != null && !role.isEmpty()) {
-            // 使用子查询：用户ID必须在 sys_user_role 中关联了该角色
-            wrapper.inSql(SysUser::getId,
-                    "SELECT user_id FROM sys_user_role ur " +
-                            "INNER JOIN sys_role r ON ur.role_id = r.id " +
-                            "WHERE r.role_code = '" + role + "'"
-            );
+            wrapper.exists("SELECT 1 FROM sys_user_role ur " +
+                    "INNER JOIN sys_role r ON ur.role_id = r.id " +
+                    "WHERE ur.user_id = sys_user.id AND r.role_code = {0}", role);
         }
 
         wrapper.orderByDesc(SysUser::getCreatedAt);
@@ -168,7 +165,13 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
 
     @Override
     public boolean deleteUser(Long userId) {
-        return this.removeById(userId);
+        SysUser user = this.getById(userId);
+        if (user == null) {
+            throw new BusinessException("用户不存在");
+        }
+        user.setIsDeleted(1);
+        user.setStatus(0);
+        return this.updateById(user);
     }
 
     @Override

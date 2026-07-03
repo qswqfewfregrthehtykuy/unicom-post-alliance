@@ -200,10 +200,19 @@ public class AuthController {
                 return Result.success("密码已重置并发送短信", data);
             } else {
                 // MANUAL 方式
+                if (request.getNewPassword() == null || request.getNewPassword().isEmpty()) {
+                    throw new BusinessException(400, "手动模式需要提供新密码");
+                }
+                if (!isValidPassword(request.getNewPassword())) {
+                    throw new BusinessException(400, "新密码不符合安全规范（至少8位，包含大小写字母、数字、特殊符号）");
+                }
+                user.setPasswordHash(PasswordUtils.encode(request.getNewPassword()));
+                userService.updateById(user);
                 operationLogService.log(module, action, userId, "重置密码成功（手动指定）", ip, "SUCCESS", null);
                 Map<String, Object> data = new HashMap<>();
                 data.put("userId", user.getId());
                 data.put("username", user.getUsername());
+                data.put("passwordHash", "***");
                 return Result.success("密码已设置", data);
             }
         } catch (Exception e) {

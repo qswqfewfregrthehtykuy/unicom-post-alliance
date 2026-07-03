@@ -7,11 +7,13 @@ import com.unicom.post.common.exception.BusinessException;
 import com.unicom.post.common.utils.PasswordUtils;
 import com.unicom.post.modules.auth.domain.entity.SysUser;
 import com.unicom.post.modules.auth.service.SysUserService;
+import com.unicom.post.modules.developer.domain.entity.BizAuditLog;
 import com.unicom.post.modules.developer.domain.entity.BizDeveloper;
 import com.unicom.post.modules.developer.domain.entity.BizDeveloperApply;
 import com.unicom.post.modules.developer.dto.DeveloperApplyAuditRequest;
 import com.unicom.post.modules.developer.dto.DeveloperApplyRequest;
 import com.unicom.post.modules.developer.dto.DeveloperApplyResponse;
+import com.unicom.post.modules.developer.mapper.BizAuditLogMapper;
 import com.unicom.post.modules.developer.mapper.BizDeveloperApplyMapper;
 import com.unicom.post.modules.developer.mapper.BizDeveloperMapper;
 import com.unicom.post.modules.developer.service.DeveloperApplyService;
@@ -44,19 +46,22 @@ public class DeveloperApplyServiceImpl extends ServiceImpl<BizDeveloperApplyMapp
     private final BizDeveloperMapper developerMapper;
     private final SysCityMapper cityMapper;
     private final SysDistrictMapper districtMapper;
+    private final BizAuditLogMapper auditLogMapper;
 
     public DeveloperApplyServiceImpl(BizOutletService outletService,
                                      SysUserService userService,
                                      SysRoleService roleService,
                                      BizDeveloperMapper developerMapper,
                                      SysCityMapper cityMapper,
-                                     SysDistrictMapper districtMapper) {
+                                     SysDistrictMapper districtMapper,
+                                     BizAuditLogMapper auditLogMapper) {
         this.outletService = outletService;
         this.userService = userService;
         this.roleService = roleService;
         this.developerMapper = developerMapper;
         this.cityMapper = cityMapper;
         this.districtMapper = districtMapper;
+        this.auditLogMapper = auditLogMapper;
     }
 
     @Override
@@ -147,7 +152,9 @@ public class DeveloperApplyServiceImpl extends ServiceImpl<BizDeveloperApplyMapp
             DeveloperApplyResponse resp = new DeveloperApplyResponse();
             BeanUtils.copyProperties(apply, resp);
             fillNames(resp);
-            resp.setAuditHistory(Collections.emptyList());
+            // 查询审核日志
+            resp.setAuditLog(buildAuditLogList(apply.getId()));
+            resp.setAuditHistory(Collections.emptyList()); // 列表不返回详细审核历史
             list.add(resp);
         }
         responsePage.setRecords(list);
@@ -182,7 +189,8 @@ public class DeveloperApplyServiceImpl extends ServiceImpl<BizDeveloperApplyMapp
         DeveloperApplyResponse resp = new DeveloperApplyResponse();
         BeanUtils.copyProperties(apply, resp);
         fillNames(resp);
-        resp.setAuditHistory(Collections.emptyList());
+        resp.setAuditHistory(buildAuditHistoryList(apply.getId()));
+        resp.setAuditLog(buildAuditLogList(apply.getId()));
         return resp;
     }
 
@@ -261,6 +269,11 @@ public class DeveloperApplyServiceImpl extends ServiceImpl<BizDeveloperApplyMapp
         apply.setReviewRemark(request.getAuditRemark());
         this.updateById(apply);
 
+        // 记录审核日志
+        saveAuditLog("DEVELOPER_APPLY", applyId, auditLevel, null,
+                currentUserId, isApproved ? "APPROVED" : "REJECTED",
+                request.getAuditRemark());
+
         log.info("申请审核完成，applyId: {}, 新状态: {}", applyId, newStatus);
 
         // 构建返回结果
@@ -297,6 +310,9 @@ public class DeveloperApplyServiceImpl extends ServiceImpl<BizDeveloperApplyMapp
         apply.setReviewAt(LocalDateTime.now());
         apply.setReviewRemark(rejectReason);
         this.updateById(apply);
+        // 记录审核日志
+        saveAuditLog("DEVELOPER_APPLY", applyId, "OUTLET", null,
+                currentUserId, "REJECTED", rejectReason);
     }
 
     // ==================== 私有辅助方法 ====================
@@ -395,5 +411,86 @@ public class DeveloperApplyServiceImpl extends ServiceImpl<BizDeveloperApplyMapp
         if ("OUTLET_APPROVED".equals(currentStatus) && "CITY".equals(auditLevel)) return true;
         if ("CITY_APPROVED".equals(currentStatus) && "PROVINCE".equals(auditLevel)) return true;
         return false;
+    }
+
+    // ==================== 审核日志辅助方法 ====================
+
+    /**
+     * 保存审核日志
+     */
+    private void saveAuditLog(String targetType, Long targetId, String auditLevel,
+                              String auditPhase, Long auditorId, String auditStatus,
+                              String auditRemark) {
+        SysUser auditor = userService.getById(auditorId);
+        String auditorName = auditor != null ? auditor.getRealName() : "未知";
+
+        BizAuditLog log = new BizAuditLog();
+        log.setTargetType(targetType);
+        log.setTargetId(targetId);
+        log.setAuditLevel(auditLevel);
+        log.setAuditPhase(auditPhase);
+        log.setAuditorId(auditorId);
+        log.setAuditorName(auditorName);
+        log.setAuditStatus(auditStatus);
+        log.setAuditRemark(auditRemark);
+        log.setAuditTime(LocalDateTime.now());
+        auditLogMapper.insert(log);
+    }
+
+    /**
+     * 构建审核日志列表（用于列表展示，只显示各级审核状态摘要）
+     */
+    private List<DeveloperApplyResponse.AuditLog> buildAuditLogList(Long applyId) {
+        LambdaQueryWrapper<BizAuditLog> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(BizAuditLog::getTargetType, "DEVELOPER_APPLY")
+                .eq(BizAuditLog::getTargetId, applyId)
+                .orderByAsc(BizAuditLog::getCreatedAt);
+        List<BizAuditLog> logs = auditLogMapper.selectList(wrapper);
+
+        // 构建预定义的各级审核状态
+        String[] levels = {"OUTLET", "CITY", "PROVINCE"};
+        List<DeveloperApplyResponse.AuditLog> result = new ArrayList<>();
+        for (String level : levels) {
+            DeveloperApplyResponse.AuditLog al = new DeveloperApplyResponse.AuditLog();
+            al.setAuditLevel(level);
+            al.setAuditorName(null);
+            al.setAuditStatus("PENDING");
+            al.setAuditTime(null);
+            // 查找该级别的实际审核记录
+            for (BizAuditLog log : logs) {
+                if (level.equals(log.getAuditLevel())) {
+                    al.setAuditorName(log.getAuditorName());
+                    al.setAuditStatus(log.getAuditStatus());
+                    al.setAuditTime(log.getAuditTime());
+                    break;
+                }
+            }
+            result.add(al);
+        }
+        return result;
+    }
+
+    /**
+     * 构建审核历史列表（用于详情展示，返回实际审核记录）
+     */
+    private List<DeveloperApplyResponse.AuditHistory> buildAuditHistoryList(Long applyId) {
+        LambdaQueryWrapper<BizAuditLog> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(BizAuditLog::getTargetType, "DEVELOPER_APPLY")
+                .eq(BizAuditLog::getTargetId, applyId)
+                .orderByAsc(BizAuditLog::getCreatedAt);
+        List<BizAuditLog> logs = auditLogMapper.selectList(wrapper);
+
+        List<DeveloperApplyResponse.AuditHistory> result = new ArrayList<>();
+        for (BizAuditLog log : logs) {
+            DeveloperApplyResponse.AuditHistory history = new DeveloperApplyResponse.AuditHistory();
+            history.setAuditLevel(log.getAuditLevel());
+            history.setAuditorId(log.getAuditorId());
+            history.setAuditorName(log.getAuditorName());
+            history.setAuditStatus(log.getAuditStatus());
+            history.setAuditRemark(log.getAuditRemark());
+            history.setAuditTime(log.getAuditTime());
+            result.add(history);
+        }
+        return result;
     }
 }

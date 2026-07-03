@@ -4,7 +4,11 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.unicom.post.common.exception.BusinessException;
+import com.unicom.post.modules.auth.domain.entity.SysUser;
 import com.unicom.post.modules.auth.service.SysUserService;
+import com.unicom.post.modules.developer.domain.entity.BizAuditLog;
+import com.unicom.post.modules.developer.domain.entity.BizDeveloper;
+import com.unicom.post.modules.developer.mapper.BizAuditLogMapper;
 import com.unicom.post.modules.developer.mapper.BizDeveloperMapper;
 import com.unicom.post.modules.order.domain.entity.BizCommissionDetailb;
 import com.unicom.post.modules.order.domain.entity.BizDevelopmentOrder;
@@ -40,20 +44,22 @@ public class BizOrderServiceImpl extends ServiceImpl<BizDevelopmentOrderMapper, 
     private final BizOutletService outletService;
     private final BizDeveloperMapper developerMapper;
     private final SysUserService userService;
-    private final BizCommissionRuleService commissionRuleService;        // 新增
-    private final BizCommissionDetailMapper commissionDetailMapper;      // 新增
+    private final BizCommissionRuleService commissionRuleService;
+    private final BizCommissionDetailMapper commissionDetailMapper;
+    private final BizAuditLogMapper auditLogMapper;
 
     public BizOrderServiceImpl(BizOutletService outletService,
                                BizDeveloperMapper developerMapper,
                                SysUserService userService,
                                BizCommissionRuleService commissionRuleService,
-                               BizCommissionDetailMapper commissionDetailMapper) {
+                               BizCommissionDetailMapper commissionDetailMapper,
+                               BizAuditLogMapper auditLogMapper) {
         this.outletService = outletService;
         this.developerMapper = developerMapper;
         this.userService = userService;
-
         this.commissionRuleService = commissionRuleService;
         this.commissionDetailMapper = commissionDetailMapper;
+        this.auditLogMapper = auditLogMapper;
     }
 
     @Override
@@ -127,8 +133,24 @@ public class BizOrderServiceImpl extends ServiceImpl<BizDevelopmentOrderMapper, 
         for (BizDevelopmentOrder order : result.getRecords()) {
             OrderResponse resp = new OrderResponse();
             BeanUtils.copyProperties(order, resp);
-            // 填充网点名称、发展人名称（简化，实际需查询关联表）
-            // 此处可扩展查询outlet.name和developer.name
+            // 填充网点名称
+            if (order.getOutletId() != null) {
+                BizOutlet outlet = outletService.getById(order.getOutletId());
+                if (outlet != null) {
+                    resp.setOutletName(outlet.getOutletName());
+                }
+            }
+            // 填充发展人名称
+            if (order.getDeveloperId() != null) {
+                BizDeveloper developer = developerMapper.selectById(order.getDeveloperId());
+                if (developer != null) {
+                    SysUser devUser = userService.getById(developer.getUserId());
+                    resp.setDeveloperName(devUser != null ? devUser.getRealName() : "未知");
+                }
+            }
+            // 填充审核日志
+            resp.setLeadAuditLog(buildOrderAuditLogList(order.getId(), "LEAD"));
+            resp.setFormalAuditLog(buildOrderAuditLogList(order.getId(), "FORMAL"));
             list.add(resp);
         }
         respPage.setRecords(list);
@@ -143,8 +165,24 @@ public class BizOrderServiceImpl extends ServiceImpl<BizDevelopmentOrderMapper, 
         }
         OrderResponse resp = new OrderResponse();
         BeanUtils.copyProperties(order, resp);
-        // 构造审核日志（模拟，实际应从审核记录表查询）
-        // 因未建审核日志表，此处只返回简单状态
+        // 填充网点名称
+        if (order.getOutletId() != null) {
+            BizOutlet outlet = outletService.getById(order.getOutletId());
+            if (outlet != null) {
+                resp.setOutletName(outlet.getOutletName());
+            }
+        }
+        // 填充发展人名称
+        if (order.getDeveloperId() != null) {
+            BizDeveloper developer = developerMapper.selectById(order.getDeveloperId());
+            if (developer != null) {
+                SysUser devUser = userService.getById(developer.getUserId());
+                resp.setDeveloperName(devUser != null ? devUser.getRealName() : "未知");
+            }
+        }
+        // 填充审核日志
+        resp.setLeadAuditLog(buildOrderAuditLogList(orderId, "LEAD"));
+        resp.setFormalAuditLog(buildOrderAuditLogList(orderId, "FORMAL"));
         return resp;
     }
 
@@ -193,6 +231,10 @@ public class BizOrderServiceImpl extends ServiceImpl<BizDevelopmentOrderMapper, 
         order.setLeadAuditAt(LocalDateTime.now());
         order.setRemark(request.getAuditRemark());
         this.updateById(order);
+
+        // 记录审核日志
+        saveOrderAuditLog(orderId, "LEAD", auditLevel, currentUserId,
+                isApproved ? "APPROVED" : "REJECTED", request.getAuditRemark());
     }
 
     @Override
@@ -252,6 +294,10 @@ public class BizOrderServiceImpl extends ServiceImpl<BizDevelopmentOrderMapper, 
         order.setFormalAuditAt(LocalDateTime.now());
         order.setRemark(request.getAuditRemark());
         this.updateById(order);
+
+        // 记录审核日志
+        saveOrderAuditLog(orderId, "FORMAL", auditLevel, currentUserId,
+                isApproved ? "APPROVED" : "REJECTED", request.getAuditRemark());
     }
 
 
@@ -382,6 +428,68 @@ public class BizOrderServiceImpl extends ServiceImpl<BizDevelopmentOrderMapper, 
         }
         order.setRemark(rejectReason);
         this.updateById(order);
+        // 记录审核日志
+        saveOrderAuditLog(orderId, auditPhase, "OUTLET", currentUserId,
+                "REJECTED", rejectReason);
+    }
+
+    // ---------- 审核日志辅助方法 ----------
+
+    /**
+     * 保存订单审核日志
+     */
+    private void saveOrderAuditLog(Long orderId, String auditPhase, String auditLevel,
+                                   Long auditorId, String auditStatus, String auditRemark) {
+        SysUser auditor = userService.getById(auditorId);
+        String auditorName = auditor != null ? auditor.getRealName() : "未知";
+
+        BizAuditLog log = new BizAuditLog();
+        log.setTargetType("ORDER");
+        log.setTargetId(orderId);
+        log.setAuditLevel(auditLevel);
+        log.setAuditPhase(auditPhase);
+        log.setAuditorId(auditorId);
+        log.setAuditorName(auditorName);
+        log.setAuditStatus(auditStatus);
+        log.setAuditRemark(auditRemark);
+        log.setAuditTime(LocalDateTime.now());
+        auditLogMapper.insert(log);
+    }
+
+    /**
+     * 构建订单审核日志列表
+     */
+    private List<OrderResponse.AuditLog> buildOrderAuditLogList(Long orderId, String phase) {
+        com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<BizAuditLog> wrapper =
+                new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<>();
+        wrapper.eq(BizAuditLog::getTargetType, "ORDER")
+                .eq(BizAuditLog::getTargetId, orderId)
+                .eq(BizAuditLog::getAuditPhase, phase)
+                .orderByAsc(BizAuditLog::getCreatedAt);
+        List<BizAuditLog> logs = auditLogMapper.selectList(wrapper);
+
+        // 构建预定义的三级审核状态
+        String[] levels = {"OUTLET", "CITY", "PROVINCE"};
+        List<OrderResponse.AuditLog> result = new ArrayList<>();
+        for (String level : levels) {
+            OrderResponse.AuditLog al = new OrderResponse.AuditLog();
+            al.setLevel(level);
+            al.setAuditorName(null);
+            al.setAuditStatus("PENDING");
+            al.setAuditTime(null);
+            al.setAuditRemark(null);
+            for (BizAuditLog log : logs) {
+                if (level.equals(log.getAuditLevel())) {
+                    al.setAuditorName(log.getAuditorName());
+                    al.setAuditStatus(log.getAuditStatus());
+                    al.setAuditTime(log.getAuditTime());
+                    al.setAuditRemark(log.getAuditRemark());
+                    break;
+                }
+            }
+            result.add(al);
+        }
+        return result;
     }
 
     // ---------- 辅助方法 ----------

@@ -127,3 +127,16 @@ export function deleteUser(userId) {
         method: 'delete'
     })
 }
+
+/**
+ * 重置用户密码（管理员操作）
+ * @param {Number} userId
+ * @param {Object} data { resetType: 'AUTO' | 'MANUAL', newPassword?: string }
+ */
+export function resetPassword(userId, data) {
+    return request({
+        url: `/api/v1/auth/reset-password/${userId}`,
+        method: 'post',
+        data
+    })
+}
