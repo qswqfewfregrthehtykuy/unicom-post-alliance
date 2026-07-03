@@ -86,7 +86,7 @@ public class SysOrgServiceImpl extends ServiceImpl<SysOrgMapper, SysOrg> impleme
             }
             if ("CITY".equals(org.getOrgType())) {
                 org.setProvinceId(parent.getId());
-                org.setCityId(org.getId());
+                // cityId 由前端传入或后续关联 sys_city 表设置
             } else if ("DISTRICT".equals(org.getOrgType())) {
                 org.setProvinceId(parent.getProvinceId());
                 org.setCityId(parent.getCityId());

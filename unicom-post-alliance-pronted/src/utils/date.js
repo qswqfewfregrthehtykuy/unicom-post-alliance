@@ -23,8 +23,11 @@ export function formatDateRange(dateRange) {
     if (!dateRange || dateRange.length < 2) {
         return { startDate: '', endDate: '' }
     }
+    // endDate + 1 天，使 BETWEEN 能覆盖结束日全天数据（created_at 为 DATETIME 类型）
+    const endDate = new Date(dateRange[1])
+    endDate.setDate(endDate.getDate() + 1)
     return {
         startDate: formatDate(dateRange[0]),
-        endDate: formatDate(dateRange[1])
+        endDate: formatDate(endDate)
     }
 }

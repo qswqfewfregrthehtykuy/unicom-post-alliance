@@ -280,7 +280,7 @@ const renderTrendChart = () => {
   if (!chartInstance) {
     chartInstance = echarts.init(trendChart.value)
   }
-  const xData = trendData.value.map(item => item.timePoint)
+  const xData = trendData.value.map(item => item.dateTime)
   const yData = trendData.value.map(item => item.value)
   const option = {
     tooltip: { trigger: 'axis' },

@@ -85,12 +85,11 @@
           <el-input v-model="form.orgName" placeholder="请输入组织名称" />
         </el-form-item>
         <el-form-item label="组织层级" prop="orgLevel">
-          <el-select v-model="form.orgLevel" placeholder="请选择层级">
-            <el-option label="区县" value="DISTRICT" />
-          </el-select>
+          <el-input-number v-model="form.orgLevel" :min="1" :max="4" disabled />
+          <span class="form-tip">区县级固定为 3</span>
         </el-form-item>
         <el-form-item label="组织类型" prop="orgType">
-          <el-select v-model="form.orgType" placeholder="请选择类型">
+          <el-select v-model="form.orgType" placeholder="请选择类型" disabled>
             <el-option label="区县" value="DISTRICT" />
           </el-select>
         </el-form-item>
@@ -140,7 +139,7 @@ const form = reactive({
   id: null,
   orgCode: '',
   orgName: '',
-  orgLevel: 'DISTRICT',
+  orgLevel: 3,
   orgType: 'DISTRICT',
   parentId: null,
   leaderName: '',
@@ -199,7 +198,7 @@ const resetForm = () => {
   form.id = null
   form.orgCode = ''
   form.orgName = ''
-  form.orgLevel = 'DISTRICT'
+  form.orgLevel = 3
   form.orgType = 'DISTRICT'
   form.parentId = selectedCityId.value
   form.leaderName = ''

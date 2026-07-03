@@ -22,7 +22,7 @@ public interface BizCommissionDetailMappera extends BaseMapper<BizCommissionDeta
             "  <choose> " +
             "    <when test=\"req.dimension == 'CITY'\"> o.city_id AS dimensionId, c.city_name AS dimensionName </when> " +
             "    <when test=\"req.dimension == 'DISTRICT'\"> d.id AS dimensionId, d.district_name AS dimensionName </when> " +
-            "    <when test=\"req.dimension == 'OUTLET'\"> o.outlet_id AS dimensionId, out.outlet_name AS dimensionName </when> " +
+            "    <when test=\"req.dimension == 'OUTLET'\"> o.outlet_id AS dimensionId, ot.outlet_name AS dimensionName </when> " +
             "    <when test=\"req.dimension == 'DEVELOPER'\"> o.developer_id AS dimensionId, u.real_name AS dimensionName </when> " +
             "    <when test=\"req.dimension == 'DATE'\"> DATE(cd.created_at) AS dimensionId, DATE(cd.created_at) AS dimensionName </when> " +
             "  </choose> " +
