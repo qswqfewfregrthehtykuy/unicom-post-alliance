@@ -4,7 +4,7 @@
       <template #header>
         <div class="card-header">
           <span>区县管理</span>
-          <div>
+          <div class="header-actions">
             <el-select
                 v-model="selectedCityId"
                 placeholder="请选择地市"
@@ -19,7 +19,7 @@
                   :value="city.id"
               />
             </el-select>
-            <el-button type="primary" @click="handleAdd" style="margin-left: 10px">新建区县</el-button>
+            <el-button type="primary" @click="handleAdd">新建区县</el-button>
           </div>
         </div>
       </template>
@@ -269,6 +269,11 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 .pagination {
   margin-top: 20px;

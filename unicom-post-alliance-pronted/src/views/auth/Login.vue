@@ -1,15 +1,34 @@
 <template>
   <div class="login-container">
     <div class="login-card">
+      <!-- 左侧品牌区 -->
       <div class="login-left">
         <div class="left-content">
-          <h2>联通代理达人系统</h2>
-          <p>高效、便捷、有温度的数字化工作台</p>
+          <div class="brand-icon">🇨🇳</div>
+          <h2>联通邮政商盟触点系统</h2>
+          <p class="brand-desc">高效、便捷、有温度的数字化工作台</p>
+          <div class="feature-list">
+            <div class="feature-item">
+              <span class="feature-dot"></span>
+              <span>多级审核，流程透明</span>
+            </div>
+            <div class="feature-item">
+              <span class="feature-dot"></span>
+              <span>佣金管理，数据清晰</span>
+            </div>
+            <div class="feature-item">
+              <span class="feature-dot"></span>
+              <span>业务发展，高效协同</span>
+            </div>
+          </div>
         </div>
-        <div class="circle circle-1"></div>
-        <div class="circle circle-2"></div>
+        <div class="bg-decoration">
+          <div class="circle circle-1"></div>
+          <div class="circle circle-2"></div>
+        </div>
       </div>
 
+      <!-- 右侧登录区 -->
       <div class="login-right">
         <div class="form-header">
           <h3>欢迎回来</h3>
@@ -17,44 +36,39 @@
         </div>
 
         <el-form
-            ref="loginFormRef"
-            :model="loginForm"
-            :rules="loginRules"
-            label-position="top"
-            size="large"
-            class="custom-form"
+          ref="loginFormRef"
+          :model="loginForm"
+          :rules="loginRules"
+          label-position="top"
+          size="large"
+          class="login-form"
         >
           <el-form-item label="用户名" prop="username">
             <el-input
-                v-model="loginForm.username"
-                placeholder="请输入用户名"
-                clearable
-            >
-              <template #prefix>
-                <span class="iconfont">👤</span>
-              </template>
-            </el-input>
+              v-model="loginForm.username"
+              placeholder="请输入用户名"
+              clearable
+              :prefix-icon="User"
+            />
           </el-form-item>
 
           <el-form-item label="密码" prop="password">
             <el-input
-                v-model="loginForm.password"
-                type="password"
-                placeholder="请输入密码"
-                show-password
-            >
-              <template #prefix>
-                <span class="iconfont">🔒</span>
-              </template>
-            </el-input>
+              v-model="loginForm.password"
+              type="password"
+              placeholder="请输入密码"
+              show-password
+              :prefix-icon="Lock"
+              @keyup.enter="handleLogin"
+            />
           </el-form-item>
 
           <el-form-item>
             <el-button
-                type="primary"
-                :loading="loading"
-                class="login-btn"
-                @click="handleLogin"
+              type="primary"
+              :loading="loading"
+              class="login-btn"
+              @click="handleLogin"
             >
               登 录
             </el-button>
@@ -69,20 +83,21 @@
       </div>
     </div>
 
+    <!-- 发展人申请弹窗 -->
     <el-dialog
-        title="社会加盟商 - 发展人入驻申请"
-        v-model="applyDialogVisible"
-        width="620px"
-        :close-on-click-modal="false"
-        @close="resetApplyForm"
-        append-to-body
+      title="社会加盟商 - 发展人入驻申请"
+      v-model="applyDialogVisible"
+      width="620px"
+      :close-on-click-modal="false"
+      @close="resetApplyForm"
+      append-to-body
     >
       <el-alert
-          title="温馨提示：本通道仅限社会加盟商（自由商铺）申请。网点内部人员请联系所属网点管理员在系统内直接开户。"
-          type="info"
-          show-icon
-          :closable="false"
-          style="margin-bottom: 20px;"
+        title="温馨提示：本通道仅限社会加盟商（自由商铺）申请。网点内部人员请联系所属网点管理员在系统内直接开户。"
+        type="info"
+        show-icon
+        :closable="false"
+        style="margin-bottom: 20px;"
       />
 
       <el-form :model="applyForm" :rules="applyRules" ref="applyFormRef" label-width="110px">
@@ -105,11 +120,11 @@
 
         <el-form-item label="归属组织网点" prop="selectedRegionAndOutlet">
           <el-cascader
-              v-model="applyForm.selectedRegionAndOutlet"
-              :props="cascaderProps"
-              placeholder="请选择所在地市 / 区县 / 归属网点"
-              style="width: 100%"
-              clearable
+            v-model="applyForm.selectedRegionAndOutlet"
+            :props="cascaderProps"
+            placeholder="请选择所在地市 / 区县 / 归属网点"
+            style="width: 100%"
+            clearable
           />
         </el-form-item>
 
@@ -127,10 +142,8 @@
       </el-form>
 
       <template #footer>
-        <span class="dialog-footer">
-          <el-button @click="applyDialogVisible = false">取 消</el-button>
-          <el-button type="primary" :loading="submitLoading" @click="handleApplySubmit">提 交 申 请</el-button>
-        </span>
+        <el-button @click="applyDialogVisible = false">取 消</el-button>
+        <el-button type="primary" :loading="submitLoading" @click="handleApplySubmit">提 交 申 请</el-button>
       </template>
     </el-dialog>
   </div>
@@ -139,15 +152,15 @@
 <script setup>
 import { ref, reactive } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { User, Lock } from '@element-plus/icons-vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/store/auth'
 import { submitDeveloperApply, getCities, getDistrictsWithOutlets } from '@/api/auth'
 
-// 初始化路由
 const router = useRouter()
 const authStore = useAuthStore()
 
-// --- 1. 登录模块原逻辑数据 ---
+// --- 登录表单 ---
 const loginFormRef = ref(null)
 const loading = ref(false)
 const loginForm = reactive({
@@ -175,7 +188,7 @@ const handleLogin = async () => {
   }
 }
 
-// --- 2. 级联选择器配置（完美解决市级/区县空白，直接读取二级缓存数据） ---
+// --- 级联选择器 ---
 const cascaderProps = {
   lazy: true,
   emitPath: true,
@@ -187,56 +200,43 @@ const cascaderProps = {
   lazyLoad(node, resolve) {
     const { level, value } = node
 
-    // 一级：加载地市
     if (level === 0) {
       getCities()
-          .then(res => {
-            const list = res.data || []
-            resolve(
-                list.map(item => ({
-                  value: item.id,
-                  label: item.cityName || item.name || item.label || item.city || '',
-                  leaf: false
-                }))
-            )
-          })
-          .catch(() => resolve([]))
-    }
-
-    // 二级：加载区县
-    else if (level === 1) {
+        .then(res => {
+          const list = res.data || []
+          resolve(list.map(item => ({
+            value: item.id,
+            label: item.cityName || item.name || item.label || item.city || '',
+            leaf: false
+          })))
+        })
+        .catch(() => resolve([]))
+    } else if (level === 1) {
       getDistrictsWithOutlets(value)
-          .then(res => {
-            const list = res.data || []
-            resolve(
-                list.map(district => ({
-                  value: district.id,
-                  label: district.name || district.districtName || district.label || '',
-                  outlets: district.outlets || [], // 挂载网点数据缓存
-                  leaf: !(district.outlets && district.outlets.length)
-                }))
-            )
-          })
-          .catch(() => resolve([]))
-    }
-
-    // 三级：直接读取二级已下发的网点缓存
-    else if (level === 2) {
+        .then(res => {
+          const list = res.data || []
+          resolve(list.map(district => ({
+            value: district.id,
+            label: district.name || district.districtName || district.label || '',
+            outlets: district.outlets || [],
+            leaf: !(district.outlets && district.outlets.length)
+          })))
+        })
+        .catch(() => resolve([]))
+    } else if (level === 2) {
       const outlets = node.data.outlets || []
-      resolve(
-          outlets.map(outlet => ({
-            value: outlet.id,
-            label: outlet.name || outlet.outletName || outlet.label || '',
-            leaf: true
-          }))
-      )
+      resolve(outlets.map(outlet => ({
+        value: outlet.id,
+        label: outlet.name || outlet.outletName || outlet.label || '',
+        leaf: true
+      })))
     } else {
       resolve([])
     }
   }
 }
 
-// --- 3. 发展人申请模块逻辑数据 ---
+// --- 发展人申请 ---
 const applyDialogVisible = ref(false)
 const submitLoading = ref(false)
 const applyFormRef = ref(null)
@@ -299,59 +299,74 @@ const handleApplySubmit = () => {
     }
 
     submitDeveloperApply(submitPayload)
-        .then((res) => {
-          const applyNo = res.data?.applyNo || '-'
-          ElMessageBox.alert(
-              `申请提交成功！您的入驻申请单号为: <b>${applyNo}</b>。<br/>我们将会在 <b>1-3个工作日</b> 内完成多级审核，初审密码将以短信形式发送至您的手机，请注意查收。`,
-              '提交成功',
-              {
-                dangerouslyUseHTMLString: true,
-                type: 'success',
-                confirmButtonText: '我知道了'
-              }
-          )
-          applyDialogVisible.value = false
-        })
-        .finally(() => {
-          submitLoading.value = false
-        })
+      .then((res) => {
+        const applyNo = res.data?.applyNo || '-'
+        ElMessageBox.alert(
+          `申请提交成功！您的入驻申请单号为: <b>${applyNo}</b>。<br/>我们将会在 <b>1-3个工作日</b> 内完成多级审核，初审密码将以短信形式发送至您的手机，请注意查收。`,
+          '提交成功',
+          {
+            dangerouslyUseHTMLString: true,
+            type: 'success',
+            confirmButtonText: '我知道了'
+          }
+        )
+        applyDialogVisible.value = false
+      })
+      .finally(() => {
+        submitLoading.value = false
+      })
   })
 }
 </script>
 
 <style scoped>
-/* ==========================================================================
-   原汁原味锁定了您原先的所有精美 CSS 布局结构（禁止改动原样式）
-   ========================================================================== */
+/* ========== 容器 ========== */
 .login-container {
   display: flex;
   justify-content: center;
   align-items: center;
   width: 100%;
   height: 100vh;
-  background: #f3f4f6;
+  background: linear-gradient(135deg, #f0f2f5 0%, #e8edf2 100%);
+  position: relative;
 }
 
+.login-container::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 40%;
+  background: linear-gradient(180deg, rgba(64, 158, 255, 0.06) 0%, transparent 100%);
+  pointer-events: none;
+}
+
+/* ========== 卡片 ========== */
 .login-card {
   display: flex;
   width: 900px;
-  height: 550px;
+  min-height: 520px;
   background: #ffffff;
-  border-radius: 16px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+  border-radius: var(--radius-xl);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(0, 0, 0, 0.04);
   overflow: hidden;
+  position: relative;
+  z-index: 1;
 }
 
+/* ========== 左侧品牌区 ========== */
 .login-left {
   position: relative;
-  width: 450px;
-  background: linear-gradient(135deg, #2c3e50, #34495e);
+  width: 420px;
+  background: linear-gradient(145deg, #1a2639 0%, #2c3e50 40%, #34495e 100%);
   color: #ffffff;
-  padding: 50px;
+  padding: 60px 48px;
   display: flex;
   flex-direction: column;
   justify-content: center;
   overflow: hidden;
+  flex-shrink: 0;
 }
 
 .left-content {
@@ -359,17 +374,54 @@ const handleApplySubmit = () => {
   z-index: 2;
 }
 
-.left-content h2 {
-  font-size: 2.2rem;
-  margin-bottom: 15px;
-  font-weight: 600;
-  letter-spacing: 1px;
+.brand-icon {
+  font-size: 3rem;
+  margin-bottom: 24px;
+  display: block;
 }
 
-.left-content p {
-  font-size: 1.05rem;
-  opacity: 0.85;
+.left-content h2 {
+  font-size: 1.8rem;
+  margin-bottom: 12px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  line-height: 1.3;
+}
+
+.brand-desc {
+  font-size: 1rem;
+  opacity: 0.75;
   line-height: 1.6;
+  margin-bottom: 32px;
+}
+
+.feature-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.feature-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.9rem;
+  opacity: 0.85;
+}
+
+.feature-dot {
+  width: 6px;
+  height: 6px;
+  background-color: rgba(64, 158, 255, 0.8);
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.bg-decoration {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
 }
 
 .circle {
@@ -379,70 +431,114 @@ const handleApplySubmit = () => {
 }
 
 .circle-1 {
-  width: 300px;
-  height: 300px;
-  top: -100px;
-  left: -100px;
+  width: 320px;
+  height: 320px;
+  top: -120px;
+  left: -120px;
 }
 
 .circle-2 {
   width: 200px;
   height: 200px;
-  bottom: -50px;
-  right: -50px;
+  bottom: -60px;
+  right: -60px;
 }
 
+/* ========== 右侧登录区 ========== */
 .login-right {
   flex: 1;
-  padding: 50px 60px;
+  padding: 60px 56px;
   display: flex;
   flex-direction: column;
   justify-content: center;
 }
 
 .form-header {
-  margin-bottom: 35px;
+  margin-bottom: 36px;
 }
 
 .form-header h3 {
-  font-size: 1.6rem;
-  color: #2c3e50;
-  margin-bottom: 8px;
-  font-weight: 600;
+  font-size: 1.5rem;
+  color: var(--color-text-primary);
+  margin-bottom: 6px;
+  font-weight: 700;
 }
 
 .form-header p {
   font-size: 0.9rem;
-  color: #95a5a6;
+  color: var(--color-text-secondary);
 }
 
-.custom-form :deep(.el-form-item__label) {
-  font-weight: 500;
-  color: #34495e;
+.login-form :deep(.el-form-item__label) {
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-regular);
   padding-bottom: 4px;
 }
 
-.custom-form :deep(.el-input__inner) {
-  height: 48px;
-}
-
-.custom-form :deep(.el-input__wrapper) {
-  border-radius: 8px;
-  background-color: #f9fbf9;
+.login-form :deep(.el-input__wrapper) {
+  height: 44px;
+  border-radius: var(--radius-base) !important;
+  background-color: #f9fafb;
 }
 
 .login-btn {
   width: 100%;
-  height: 48px;
-  font-size: 1.05rem;
-  border-radius: 8px;
-  margin-top: 10px;
+  height: 44px;
+  font-size: 1rem;
+  font-weight: var(--font-weight-bold);
+  border-radius: var(--radius-base) !important;
+  margin-top: 8px;
+  letter-spacing: 2px;
 }
 
 .login-actions {
   display: flex;
   justify-content: flex-end;
-  margin-top: 15px;
-  padding-right: 5px;
+  margin-top: 12px;
+}
+
+/* ========== 响应式 ========== */
+@media screen and (max-width: 992px) {
+  .login-card {
+    width: 90%;
+    flex-direction: column;
+  }
+
+  .login-left {
+    width: 100%;
+    padding: 40px 32px;
+  }
+
+  .left-content h2 {
+    font-size: 1.4rem;
+  }
+
+  .brand-desc {
+    margin-bottom: 20px;
+  }
+
+  .feature-list {
+    gap: 8px;
+  }
+
+  .login-right {
+    padding: 36px 32px;
+  }
+}
+
+@media screen and (max-width: 576px) {
+  .login-card {
+    width: 100%;
+    height: 100vh;
+    border-radius: 0;
+  }
+
+  .login-left {
+    padding: 30px 24px;
+  }
+
+  .login-right {
+    padding: 24px 20px;
+  }
 }
 </style>

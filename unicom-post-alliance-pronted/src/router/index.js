@@ -29,6 +29,18 @@ const routes = [
         component: () => import('@/views/layout/Layout.vue'),
         redirect: '/dashboard',
         children: [
+            // ==================== 重定向路由（用于页面刷新） ====================
+            {
+                path: 'redirect/:path(.*)',
+                name: 'Redirect',
+                meta: { title: '跳转中', requiresAuth: true, roles: ALL_USERS },
+                beforeEnter: (to) => {
+                  const targetPath = '/' + to.params.path
+                  window.location.href = targetPath
+                  return false
+                }
+            },
+
             // ==================== 首页：所有角色 ====================
             {
                 path: 'dashboard',
@@ -42,7 +54,7 @@ const routes = [
                 path: 'profile',
                 name: 'Profile',
                 component: () => import('@/views/profile/Index.vue'),
-                meta: { title: '个人中心', requiresAuth: true, roles: [ROLES.CITY, ROLES.OUTLET, ROLES.DEVELOPER] }
+                meta: { title: '个人中心', requiresAuth: true, roles: ALL_USERS }
             },
 
             // ==================== 账号管理：仅省分 ====================
@@ -175,7 +187,7 @@ const router = createRouter({
 
 // 路由拦截守卫
 router.beforeEach(async (to, from, next) => {
-    document.title = to.meta.title ? `${to.meta.title} - 联通代理达人` : '联通代理达人系统'
+    document.title = to.meta.title ? `${to.meta.title} - 联通邮政商盟触点系统` : '联通邮政商盟触点系统'
 
     const token = localStorage.getItem('token')
 

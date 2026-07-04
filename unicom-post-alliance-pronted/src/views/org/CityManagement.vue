@@ -1,27 +1,27 @@
 <template>
-  <div class="org-management">
-    <el-card shadow="never">
+  <div class="page-container">
+    <el-card shadow="never" class="table-card">
       <template #header>
         <div class="card-header">
           <span>地市管理</span>
-          <el-button type="primary" @click="handleAdd">新建地市</el-button>
+          <el-button type="primary" :icon="Plus" @click="handleAdd">新建地市</el-button>
         </div>
       </template>
 
       <el-table :data="tableData" v-loading="loading" stripe>
         <el-table-column prop="orgCode" label="编码" width="120" />
-        <el-table-column prop="orgName" label="名称" width="180" />
+        <el-table-column prop="orgName" label="名称" min-width="160" />
         <el-table-column prop="leaderName" label="负责人" width="120" />
         <el-table-column prop="leaderPhone" label="电话" width="140" />
-        <el-table-column prop="address" label="地址" show-overflow-tooltip />
-        <el-table-column prop="status" label="状态" width="100">
+        <el-table-column prop="address" label="地址" show-overflow-tooltip min-width="180" />
+        <el-table-column prop="status" label="状态" width="100" align="center">
           <template #default="{ row }">
-            <el-tag :type="row.status === 1 ? 'success' : 'danger'">
+            <el-tag :type="row.status === 1 ? 'success' : 'danger'" size="small">
               {{ row.status === 1 ? '启用' : '停用' }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="200" fixed="right">
+        <el-table-column label="操作" width="180" fixed="right" align="center">
           <template #default="{ row }">
             <el-button link type="primary" @click="handleEdit(row)">编辑</el-button>
             <el-button link type="danger" @click="handleDelete(row)">删除</el-button>
@@ -30,29 +30,18 @@
       </el-table>
 
       <el-pagination
-          class="pagination"
-          v-model:current-page="pageNo"
-          v-model:page-size="pageSize"
-          :total="total"
-          @current-change="fetchData"
-          @size-change="fetchData"
-          layout="total, sizes, prev, pager, next"
+        class="pagination"
+        v-model:current-page="pageNo"
+        v-model:page-size="pageSize"
+        :total="total"
+        @current-change="fetchData"
+        @size-change="fetchData"
+        layout="total, sizes, prev, pager, next"
       />
     </el-card>
 
-    <!-- 新建/编辑对话框 -->
-    <el-dialog
-        v-model="dialogVisible"
-        :title="dialogTitle"
-        width="600px"
-        @closed="resetForm"
-    >
-      <el-form
-          ref="formRef"
-          :model="form"
-          :rules="rules"
-          label-width="100px"
-      >
+    <el-dialog v-model="dialogVisible" :title="dialogTitle" width="600px" :close-on-click-modal="false" @closed="resetForm">
+      <el-form ref="formRef" :model="form" :rules="rules" label-width="100px">
         <el-form-item label="编码" prop="orgCode">
           <el-input v-model="form.orgCode" placeholder="请输入组织编码" />
         </el-form-item>
@@ -81,12 +70,12 @@
           <el-input-number v-model="form.sortOrder" :min="0" />
         </el-form-item>
         <el-form-item label="备注" prop="remark">
-          <el-input v-model="form.remark" type="textarea" rows="2" />
+          <el-input v-model="form.remark" type="textarea" :rows="2" />
         </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="submitForm" :loading="submitting">确认</el-button>
+        <el-button type="primary" :loading="submitting" @click="submitForm">确认</el-button>
       </template>
     </el-dialog>
   </div>
@@ -95,35 +84,23 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { Plus } from '@element-plus/icons-vue'
 import { getChildren, createOrg, updateOrg, deleteOrg, getOrgTree } from '@/api/org.js'
 
-// 省级ID（从树中获取）
 const provinceId = ref(null)
-
-// 表格数据
 const tableData = ref([])
 const loading = ref(false)
 const pageNo = ref(1)
 const pageSize = ref(20)
 const total = ref(0)
 
-// 对话框
 const dialogVisible = ref(false)
 const dialogTitle = ref('新建地市')
 const submitting = ref(false)
 const formRef = ref(null)
 const form = reactive({
-  id: null,
-  orgCode: '',
-  orgName: '',
-  orgLevel: 2,
-  orgType: 'CITY',
-  parentId: null,
-  leaderName: '',
-  leaderPhone: '',
-  address: '',
-  sortOrder: 0,
-  remark: ''
+  id: null, orgCode: '', orgName: '', orgLevel: 2, orgType: 'CITY',
+  parentId: null, leaderName: '', leaderPhone: '', address: '', sortOrder: 0, remark: ''
 })
 
 const rules = {
@@ -133,16 +110,11 @@ const rules = {
   orgType: [{ required: true, message: '请选择类型', trigger: 'change' }]
 }
 
-// 获取省级ID
 const getProvinceId = async () => {
   const res = await getOrgTree(false)
-  if (res.data) {
-    provinceId.value = res.data.id
-    form.parentId = provinceId.value
-  }
+  if (res.data) { provinceId.value = res.data.id; form.parentId = provinceId.value }
 }
 
-// 获取地市列表
 const fetchData = async () => {
   if (!provinceId.value) await getProvinceId()
   loading.value = true
@@ -150,87 +122,55 @@ const fetchData = async () => {
     const res = await getChildren(provinceId.value, pageNo.value, pageSize.value)
     tableData.value = res.data.records || []
     total.value = res.data.total || 0
-  } finally {
-    loading.value = false
-  }
+  } finally { loading.value = false }
 }
 
-// 重置表单
 const resetForm = () => {
-  form.id = null
-  form.orgCode = ''
-  form.orgName = ''
-  form.orgLevel = 2
-  form.orgType = 'CITY'
-  form.leaderName = ''
-  form.leaderPhone = ''
-  form.address = ''
-  form.sortOrder = 0
-  form.remark = ''
+  form.id = null; form.orgCode = ''; form.orgName = ''; form.orgLevel = 2; form.orgType = 'CITY'
+  form.leaderName = ''; form.leaderPhone = ''; form.address = ''; form.sortOrder = 0; form.remark = ''
   form.parentId = provinceId.value
   formRef.value?.resetFields()
 }
 
-// 新建
-const handleAdd = () => {
-  dialogTitle.value = '新建地市'
-  resetForm()
-  dialogVisible.value = true
-}
+const handleAdd = () => { dialogTitle.value = '新建地市'; resetForm(); dialogVisible.value = true }
+const handleEdit = (row) => { dialogTitle.value = '编辑地市'; Object.assign(form, row); form.parentId = provinceId.value; dialogVisible.value = true }
 
-// 编辑
-const handleEdit = (row) => {
-  dialogTitle.value = '编辑地市'
-  Object.assign(form, row)
-  form.parentId = provinceId.value
-  dialogVisible.value = true
-}
-
-// 提交
 const submitForm = async () => {
   await formRef.value.validate()
   submitting.value = true
   try {
-    if (form.id) {
-      await updateOrg(form.id, form)
-      ElMessage.success('更新成功')
-    } else {
-      await createOrg(form)
-      ElMessage.success('创建成功')
-    }
+    if (form.id) { await updateOrg(form.id, form); ElMessage.success('更新成功') }
+    else { await createOrg(form); ElMessage.success('创建成功') }
     dialogVisible.value = false
     fetchData()
-  } catch (err) {
-    ElMessage.error(err.message || '操作失败')
-  } finally {
-    submitting.value = false
-  }
+  } catch (err) { ElMessage.error(err.message || '操作失败') }
+  finally { submitting.value = false }
 }
 
-// 删除
 const handleDelete = (row) => {
-  ElMessageBox.confirm(`确定要删除地市“${row.orgName}”吗？`, '提示', {
-    type: 'warning'
-  }).then(async () => {
-    await deleteOrg(row.id)
-    ElMessage.success('删除成功')
-    fetchData()
-  }).catch(() => {})
+  ElMessageBox.confirm(`确定要删除地市"${row.orgName}"吗？`, '提示', { type: 'warning' })
+    .then(async () => { await deleteOrg(row.id); ElMessage.success('删除成功'); fetchData() })
+    .catch(() => {})
 }
 
-onMounted(() => {
-  getProvinceId().then(fetchData)
-})
+onMounted(() => { getProvinceId().then(fetchData) })
 </script>
 
 <style scoped>
-.org-management .card-header {
+.card-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  font-size: 18px;
+  font-weight: 700;
 }
 .pagination {
-  margin-top: 20px;
+  margin-top: 16px;
   justify-content: flex-end;
+}
+.form-tip {
+  margin-left: 8px;
+  color: #909399;
+  font-size: 12px;
 }
 </style>

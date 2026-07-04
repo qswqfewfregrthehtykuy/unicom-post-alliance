@@ -6,7 +6,10 @@ import { createPinia } from 'pinia'
 // 引入 Element Plus
 import ElementPlus from 'element-plus'
 import 'element-plus/dist/index.css'
-import zhCn from 'element-plus/dist/locale/zh-cn.mjs' // 中文语言包
+import zhCn from 'element-plus/dist/locale/zh-cn.mjs'
+
+// 引入企业级设计系统
+import './styles/enterprise.css'
 
 const app = createApp(App)
 

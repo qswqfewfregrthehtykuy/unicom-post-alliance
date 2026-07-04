@@ -1,10 +1,10 @@
 <template>
-  <div class="user-management-container">
-    <!-- 头部搜索与操作条 -->
+  <div class="page-container">
+    <!-- 搜索区域 -->
     <el-card shadow="never" class="search-card">
       <el-form :inline="true" :model="queryParams" class="search-form">
         <el-form-item label="角色类型">
-          <el-select v-model="queryParams.role" placeholder="全部角色" clearable style="width: 140px">
+          <el-select v-model="queryParams.role" placeholder="全部角色" clearable style="width: 150px">
             <el-option label="省分管理员" value="ROLE_PROVINCE" />
             <el-option label="地市管理员" value="ROLE_CITY" />
             <el-option label="网点管理员" value="ROLE_OUTLET" />
@@ -14,7 +14,7 @@
         </el-form-item>
 
         <el-form-item label="所属地市">
-          <el-select v-model="queryParams.cityId" placeholder="全部地市" clearable style="width: 140px">
+          <el-select v-model="queryParams.cityId" placeholder="全部地市" clearable style="width: 150px">
             <el-option v-for="item in cityOptions" :key="item.id" :label="item.name" :value="item.id" />
           </el-select>
         </el-form-item>
@@ -27,34 +27,37 @@
         </el-form-item>
 
         <el-form-item label="关键字">
-          <el-input v-model="queryParams.keyword" placeholder="用户名/姓名/手机号" clearable style="width: 200px" />
+          <el-input v-model="queryParams.keyword" placeholder="用户名/姓名/手机号" clearable style="width: 210px" />
         </el-form-item>
 
         <el-form-item>
-          <el-button type="primary" @click="handleQuery">
-            <span class="btn-icon">🔍</span> 查询
-          </el-button>
+          <el-button type="primary" :icon="Search" @click="handleQuery">查询</el-button>
           <el-button @click="resetQuery">重置</el-button>
         </el-form-item>
       </el-form>
-
-      <div class="action-bar">
-        <el-button type="success" @click="openDialog('add')">
-          <span class="btn-icon">➕</span> 新增用户
-        </el-button>
-      </div>
     </el-card>
 
-    <!-- 数据表格 -->
+    <!-- 表格区域 -->
     <el-card shadow="never" class="table-card">
-      <el-table v-loading="loading" :data="userList" border stripe style="width: 100%">
+      <div class="toolbar">
+        <div class="toolbar-left">
+          <el-button type="primary" :icon="Plus" @click="openDialog('add')">新增用户</el-button>
+        </div>
+        <div class="toolbar-right">
+          <el-tooltip content="刷新表格">
+            <el-button :icon="RefreshRight" circle @click="fetchUserList" />
+          </el-tooltip>
+        </div>
+      </div>
+
+      <el-table v-loading="loading" :data="userList" stripe style="width: 100%">
         <el-table-column prop="id" label="用户ID" width="90" align="center" />
         <el-table-column prop="username" label="用户名" min-width="120" />
         <el-table-column prop="realName" label="真实姓名" min-width="110" />
-        <el-table-column prop="phone" label="手机号" width="120" align="center" />
+        <el-table-column prop="phone" label="手机号" width="130" align="center" />
         <el-table-column label="所属角色" min-width="140">
           <template #default="scope">
-            <el-tag v-for="role in scope.row.roles" :key="role" class="mx-1" size="small" type="info">
+            <el-tag v-for="role in scope.row.roles" :key="role" class="role-tag" size="small" type="info">
               {{ formatRole(role) }}
             </el-tag>
           </template>
@@ -66,52 +69,47 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="状态" width="100" align="center">
+        <el-table-column label="状态" width="90" align="center">
           <template #default="scope">
             <el-switch
-                v-model="scope.row.status"
-                :active-value="1"
-                :inactive-value="0"
-                @change="handleStatusChange(scope.row)"
+              v-model="scope.row.status"
+              :active-value="1"
+              :inactive-value="0"
+              size="small"
+              @change="handleStatusChange(scope.row)"
             />
           </template>
         </el-table-column>
         <el-table-column prop="createTime" label="创建时间" width="170" align="center" />
-        <el-table-column label="操作" width="240" align="center" fixed="right">
+        <el-table-column label="操作" width="220" align="center" fixed="right">
           <template #default="scope">
-            <el-button type="primary" link size="small" @click="openDialog('edit', scope.row)">
-              编辑
-            </el-button>
-            <el-button type="warning" link size="small" @click="openResetDialog(scope.row)">
-              重置密码
-            </el-button>
-            <el-button type="danger" link size="small" @click="handleDelete(scope.row)">
-              删除
-            </el-button>
+            <el-button type="primary" link size="small" @click="openDialog('edit', scope.row)">编辑</el-button>
+            <el-button type="warning" link size="small" @click="openResetDialog(scope.row)">重置密码</el-button>
+            <el-button type="danger" link size="small" @click="handleDelete(scope.row)">删除</el-button>
           </template>
         </el-table-column>
       </el-table>
 
-      <!-- 分页区域 -->
-      <div class="pagination-container">
+      <div class="pagination-wrap">
         <el-pagination
-            v-model:current-page="queryParams.pageNo"
-            v-model:page-size="queryParams.pageSize"
-            :page-sizes="[10, 20, 50, 100]"
-            layout="total, sizes, prev, pager, next, jumper"
-            :total="total"
-            @size-change="handleQuery"
-            @current-change="fetchUserList"
+          v-model:current-page="queryParams.pageNo"
+          v-model:page-size="queryParams.pageSize"
+          :page-sizes="[10, 20, 50, 100]"
+          layout="total, sizes, prev, pager, next, jumper"
+          :total="total"
+          @size-change="handleQuery"
+          @current-change="fetchUserList"
         />
       </div>
     </el-card>
 
     <!-- 新增/编辑弹窗 -->
     <el-dialog
-        :title="dialogType === 'add' ? '新增系统用户' : '编辑系统用户'"
-        v-model="dialogVisible"
-        width="540px"
-        @close="closeDialog"
+      :title="dialogType === 'add' ? '新增系统用户' : '编辑系统用户'"
+      v-model="dialogVisible"
+      width="560px"
+      :close-on-click-modal="false"
+      @close="closeDialog"
     >
       <el-form :model="userForm" :rules="formRules" ref="userFormRef" label-width="110px">
         <el-form-item label="用户名" prop="username">
@@ -141,7 +139,6 @@
           </el-select>
         </el-form-item>
 
-        <!-- 联动：只有选择地市级或更细时才显现 -->
         <el-form-item v-if="userForm.dataScopeType === 'CITY' || userForm.dataScopeType === 'OUTLET'" label="管辖地市" prop="scopeCityId">
           <el-select v-model="userForm.scopeCityId" placeholder="请指定管辖的地市" style="width: 100%">
             <el-option v-for="item in cityOptions" :key="item.id" :label="item.name" :value="item.id" />
@@ -157,15 +154,13 @@
         </el-form-item>
       </el-form>
       <template #footer>
-        <span class="dialog-footer">
-          <el-button @click="dialogVisible = false">取 消</el-button>
-          <el-button type="primary" :loading="submitLoading" @click="handleSubmit">确 定</el-button>
-        </span>
+        <el-button @click="dialogVisible = false">取 消</el-button>
+        <el-button type="primary" :loading="submitLoading" @click="handleSubmit">确 定</el-button>
       </template>
     </el-dialog>
 
     <!-- 重置密码弹窗 -->
-    <el-dialog title="重置用户密码" v-model="resetDialogVisible" width="480px" @close="closeResetDialog">
+    <el-dialog title="重置用户密码" v-model="resetDialogVisible" width="480px" :close-on-click-modal="false" @close="closeResetDialog">
       <el-form :model="resetForm" ref="resetFormRef" label-width="100px">
         <el-form-item label="目标用户">
           <el-tag type="info">{{ resetForm.username }}（{{ resetForm.realName }}）</el-tag>
@@ -193,9 +188,9 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { Search, Plus, RefreshRight } from '@element-plus/icons-vue'
 import { getUserList, createUser, updateUser, updateUserStatus, deleteUser, resetPassword } from '@/api/auth'
 
-// --- 响应式变量 ---
 const loading = ref(false)
 const submitLoading = ref(false)
 const dialogVisible = ref(false)
@@ -233,7 +228,6 @@ const formRules = {
   dataScopeType: [{ required: true, message: '请选择数据范围策略', trigger: 'change' }]
 }
 
-// --- API 交互 ---
 const fetchUserList = () => {
   loading.value = true
   getUserList(queryParams).then(res => {
@@ -286,8 +280,8 @@ const handleDelete = (row) => {
   }).catch(() => {})
 }
 
-const handleQuery = () => { queryParams.pageNo = 1; fetchUserList(); }
-const resetQuery = () => { queryParams.role = ''; queryParams.cityId = null; queryParams.status = null; queryParams.keyword = ''; handleQuery(); }
+const handleQuery = () => { queryParams.pageNo = 1; fetchUserList() }
+const resetQuery = () => { queryParams.role = ''; queryParams.cityId = null; queryParams.status = null; queryParams.keyword = ''; handleQuery() }
 
 const openDialog = (type, row = null) => {
   dialogType.value = type
@@ -315,59 +309,41 @@ const resetForm = reactive({ userId: null, username: '', realName: '', resetType
 const openResetDialog = (row) => {
   resetDialogVisible.value = true
   resetResult.value = ''
-  Object.assign(resetForm, {
-    userId: row.id, username: row.username, realName: row.realName,
-    resetType: 'AUTO', newPassword: ''
-  })
+  Object.assign(resetForm, { userId: row.id, username: row.username, realName: row.realName, resetType: 'AUTO', newPassword: '' })
 }
 
-const closeResetDialog = () => {
-  resetDialogVisible.value = false
-  resetResult.value = ''
-}
+const closeResetDialog = () => { resetDialogVisible.value = false; resetResult.value = '' }
 
 const handleResetSubmit = () => {
-  if (resetForm.resetType === 'MANUAL' && !resetForm.newPassword) {
-    ElMessage.warning('手动模式需要输入新密码')
-    return
-  }
-  if (resetForm.resetType === 'MANUAL' && resetForm.newPassword.length < 8) {
-    ElMessage.warning('新密码至少8位')
-    return
-  }
+  if (resetForm.resetType === 'MANUAL' && !resetForm.newPassword) { ElMessage.warning('手动模式需要输入新密码'); return }
+  if (resetForm.resetType === 'MANUAL' && resetForm.newPassword.length < 8) { ElMessage.warning('新密码至少8位'); return }
   resetLoading.value = true
   resetResult.value = ''
-  resetPassword(resetForm.userId, {
-    resetType: resetForm.resetType,
-    newPassword: resetForm.resetType === 'MANUAL' ? resetForm.newPassword : undefined
-  }).then(res => {
-    const data = res.data || res
-    if (data.tempPassword) {
-      resetResult.value = `密码已重置！临时密码：${data.tempPassword}（请告知用户，此密码仅显示一次）`
-    } else {
-      resetResult.value = '密码重置成功'
-    }
-    ElMessage.success('密码重置成功')
-    fetchUserList()
-  }).catch(err => {
-    ElMessage.error(err.response?.data?.msg || '密码重置失败')
-  }).finally(() => { resetLoading.value = false })
+  resetPassword(resetForm.userId, { resetType: resetForm.resetType, newPassword: resetForm.resetType === 'MANUAL' ? resetForm.newPassword : undefined })
+    .then(res => {
+      const data = res.data || res
+      resetResult.value = data.tempPassword ? `密码已重置！临时密码：${data.tempPassword}（请告知用户，此密码仅显示一次）` : '密码重置成功'
+      ElMessage.success('密码重置成功')
+      fetchUserList()
+    }).catch(err => {
+      ElMessage.error(err.response?.data?.msg || '密码重置失败')
+    }).finally(() => { resetLoading.value = false })
 }
 
-const formatRole = (code) => { const target = roleOptions.value.find(item => item.roleCode === code); return target ? target.roleName : code; }
-const getScopeTypeTag = (type) => { if (type === 'PROVINCE') return 'danger'; if (type === 'CITY') return 'warning'; if (type === 'OUTLET') return 'success'; return 'info'; }
+const formatRole = (code) => { const target = roleOptions.value.find(item => item.roleCode === code); return target ? target.roleName : code }
+const getScopeTypeTag = (type) => { if (type === 'PROVINCE') return 'danger'; if (type === 'CITY') return 'warning'; if (type === 'OUTLET') return 'success'; return 'info' }
 
 onMounted(() => { fetchUserList() })
 </script>
 
 <style scoped>
-.user-management-container { display: flex; flex-direction: column; gap: 16px; height: 100%; }
-.search-card { border-radius: 8px; background-color: #ffffff; }
-.search-form { margin-bottom: -10px; }
-.action-bar { margin-top: 10px; padding-top: 10px; border-top: 1px dashed #e2e8f0; }
-.table-card { flex: 1; border-radius: 8px; background-color: #ffffff; }
-.pagination-container { margin-top: 20px; display: flex; justify-content: flex-end; }
-.btn-icon { margin-right: 4px; }
-.mx-1 { margin: 2px; }
-:deep(.el-table .cell) { white-space: nowrap; }
+.role-tag {
+  margin: 2px;
+}
+
+.pagination-wrap {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
 </style>

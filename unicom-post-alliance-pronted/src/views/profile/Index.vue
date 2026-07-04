@@ -1,6 +1,6 @@
 <template>
-  <div class="profile-container">
-    <el-card class="profile-card" shadow="hover">
+  <div class="page-container" style="max-width: 900px; margin: 0 auto;">
+    <el-card shadow="never">
       <template #header>
         <div class="card-header">
           <span class="card-title">👤 个人信息</span>
