@@ -15,5 +15,7 @@ public class LoginResponse {
     private String dataScopeType;
     private Long scopeCityId;
     private Long scopeOutletId;
+    private String scopeCityName;      // 数据权限对应的地市名称
+    private String scopeOutletName;    // 数据权限对应的网点名称
     private LocalDateTime lastLoginAt;
 }

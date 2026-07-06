@@ -140,13 +140,15 @@
         </el-form-item>
 
         <el-form-item v-if="userForm.dataScopeType === 'CITY' || userForm.dataScopeType === 'OUTLET'" label="管辖地市" prop="scopeCityId">
-          <el-select v-model="userForm.scopeCityId" placeholder="请指定管辖的地市" style="width: 100%">
+          <el-select v-model="userForm.scopeCityId" placeholder="请指定管辖的地市" style="width: 100%" @change="onCityChange">
             <el-option v-for="item in cityOptions" :key="item.id" :label="item.name" :value="item.id" />
           </el-select>
         </el-form-item>
 
-        <el-form-item v-if="userForm.dataScopeType === 'OUTLET'" label="管辖网点ID" prop="scopeOutletId">
-          <el-input-number v-model="userForm.scopeOutletId" :min="1" placeholder="绑定所属网点主键ID" style="width: 100%" controls-position="right" />
+        <el-form-item v-if="userForm.dataScopeType === 'OUTLET'" label="管辖网点" prop="scopeOutletId">
+          <el-select v-model="userForm.scopeOutletId" placeholder="请先选择地市" style="width: 100%" filterable :disabled="!userForm.scopeCityId" :loading="outletLoading">
+            <el-option v-for="item in outletOptions" :key="item.id" :label="item.outletName" :value="item.id" />
+          </el-select>
         </el-form-item>
 
         <el-form-item label="备注说明" prop="remark">
@@ -186,10 +188,11 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search, Plus, RefreshRight } from '@element-plus/icons-vue'
-import { getUserList, createUser, updateUser, updateUserStatus, deleteUser, resetPassword } from '@/api/auth'
+import { getUserList, createUser, updateUser, updateUserStatus, deleteUser, resetPassword, getCities } from '@/api/auth'
+import { getOutletList } from '@/api/outlet'
 
 const loading = ref(false)
 const submitLoading = ref(false)
@@ -199,12 +202,27 @@ const userFormRef = ref(null)
 const userList = ref([])
 const total = ref(0)
 
-const cityOptions = ref([
-  { id: 1, name: '南昌市' }, { id: 2, name: '九江市' }, { id: 3, name: '赣州市' },
-  { id: 4, name: '吉安市' }, { id: 5, name: '宜春市' }, { id: 6, name: '抚州市' },
-  { id: 7, name: '上饶市' }, { id: 8, name: '萍乡市' }, { id: 9, name: '景德镇市' },
-  { id: 10, name: '新余市' }, { id: 11, name: '鹰潭市' }
-])
+// 地市列表（从后端动态加载，保证 ID 与数据库一致）
+const cityOptions = ref([])
+const cityLoading = ref(false)
+
+const fetchCityOptions = () => {
+  cityLoading.value = true
+  getCities().then(res => {
+    const data = res.data || res
+    // API 返回 [{ id, name }]
+    const list = Array.isArray(data) ? data : (data.records || data.list || [])
+    cityOptions.value = list.map(item => ({ id: item.id, name: item.name }))
+    return list
+  }).catch(() => {
+    cityOptions.value = []
+    ElMessage.error('加载地市列表失败')
+  }).finally(() => { cityLoading.value = false })
+}
+
+// 网点下拉选项（根据所选地市动态加载）
+const outletOptions = ref([])
+const outletLoading = ref(false)
 
 const roleOptions = ref([
   { id: 1, roleCode: 'ROLE_PROVINCE', roleName: '省分管理员' },
@@ -242,9 +260,9 @@ const fetchUserList = () => {
 const handleStatusChange = (row) => {
   updateUserStatus(row.id, row.status).then(() => {
     ElMessage.success(`账号已${row.status === 1 ? '成功启用' : '成功禁用'}`)
-  }).catch(() => {
+  }).catch((err) => {
     row.status = row.status === 1 ? 0 : 1
-    ElMessage.error('状态更新失败')
+    ElMessage.error(err?.response?.data?.msg || err?.message || '状态更新失败')
   })
 }
 
@@ -254,6 +272,16 @@ const handleSubmit = () => {
     if (userForm.dataScopeType === 'CITY' && !userForm.scopeCityId) {
       ElMessage.warning('CITY 数据权限必须指定关联的地市！')
       return
+    }
+    if (userForm.dataScopeType === 'OUTLET') {
+      if (!userForm.scopeCityId) {
+        ElMessage.warning('OUTLET 数据权限必须先指定管辖地市！')
+        return
+      }
+      if (!userForm.scopeOutletId) {
+        ElMessage.warning('OUTLET 数据权限必须指定管辖网点！')
+        return
+      }
     }
     submitLoading.value = true
     const isEdit = dialogType.value === 'edit'
@@ -286,18 +314,58 @@ const resetQuery = () => { queryParams.role = ''; queryParams.cityId = null; que
 const openDialog = (type, row = null) => {
   dialogType.value = type
   dialogVisible.value = true
+  outletOptions.value = []
   if (type === 'edit' && row) {
     Object.assign(userForm, {
       id: row.id, username: row.username, realName: row.realName, phone: row.phone,
       roleIds: row.roleIds || (row.roles ? row.roles.map(r => roleOptions.value.find(o => o.roleCode === r)?.id).filter(Boolean) : []),
       dataScopeType: row.dataScopeType || 'PROVINCE', scopeCityId: row.scopeCityId, scopeOutletId: row.scopeOutletId, remark: row.remark || ''
     })
+    // 编辑 OUTLET 用户时，加载其地市下的网点列表
+    if (row.dataScopeType === 'OUTLET' && row.scopeCityId) {
+      fetchOutlets(row.scopeCityId)
+    }
   } else {
     Object.assign(userForm, { id: null, username: '', realName: '', phone: '', roleIds: [], dataScopeType: 'PROVINCE', scopeCityId: null, scopeOutletId: null, remark: '' })
   }
 }
 
-const closeDialog = () => { if (userFormRef.value) userFormRef.value.resetFields() }
+const closeDialog = () => {
+  if (userFormRef.value) userFormRef.value.resetFields()
+  outletOptions.value = []
+}
+
+// 地市变更时：清空已选网点并重新加载该地市下的网点列表
+const onCityChange = (cityId) => {
+  userForm.scopeOutletId = null
+  if (cityId) {
+    fetchOutlets(cityId)
+  } else {
+    outletOptions.value = []
+  }
+}
+
+// 加载指定地市下的网点列表
+const fetchOutlets = (cityId) => {
+  outletLoading.value = true
+  getOutletList({ cityId, pageNo: 1, pageSize: 200 }).then(res => {
+    const data = res.data || res
+    outletOptions.value = data.records || data.list || []
+  }).catch(() => {
+    outletOptions.value = []
+    ElMessage.error('加载网点列表失败')
+  }).finally(() => { outletLoading.value = false })
+}
+
+// 监听数据范围类型切换：切到 OUTLET 且有地市时加载网点
+watch(() => userForm.dataScopeType, (newVal) => {
+  if (newVal === 'OUTLET' && userForm.scopeCityId) {
+    fetchOutlets(userForm.scopeCityId)
+  } else if (newVal !== 'OUTLET') {
+    userForm.scopeOutletId = null
+    outletOptions.value = []
+  }
+})
 
 // --- 重置密码 ---
 const resetDialogVisible = ref(false)
@@ -333,7 +401,10 @@ const handleResetSubmit = () => {
 const formatRole = (code) => { const target = roleOptions.value.find(item => item.roleCode === code); return target ? target.roleName : code }
 const getScopeTypeTag = (type) => { if (type === 'PROVINCE') return 'danger'; if (type === 'CITY') return 'warning'; if (type === 'OUTLET') return 'success'; return 'info' }
 
-onMounted(() => { fetchUserList() })
+onMounted(() => {
+  fetchUserList()
+  fetchCityOptions()
+})
 </script>
 
 <style scoped>

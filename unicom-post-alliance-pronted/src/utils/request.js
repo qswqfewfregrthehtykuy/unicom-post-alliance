@@ -2,6 +2,9 @@ import axios from 'axios'
 import { ElMessage } from 'element-plus'
 import router from '@/router'
 
+// 防止重复处理 401 的标志
+let isHandling401 = false
+
 // ---------- 日期转换工具函数 ----------
 /**
  * 将日期（Date 或 ISO 字符串）格式化为 yyyy-MM-dd
@@ -93,13 +96,12 @@ service.interceptors.response.use(
 
         // 如果后端返回的 code 不是 200（或者成功标志），则进行拦截提示
         if (res.code && res.code !== 200) {
-            ElMessage.error(res.msg || '系统错误')
-
-            // 401 说明登录失效或无权限，清除本地数据并跳回登录页
+            // 401: Token过期/未认证 — 静默跳转登录页，不弹错误提示
             if (res.code === 401) {
-                localStorage.clear()
-                router.push('/login')
+                handle401()
+                return Promise.reject(new Error(res.msg || 'Error'))
             }
+            ElMessage.error(res.msg || '系统错误')
             return Promise.reject(new Error(res.msg || 'Error'))
         }
         return res
@@ -108,10 +110,11 @@ service.interceptors.response.use(
         // 处理 HTTP 状态码错误 (对应后端 throw new BusinessException)
         if (error.response && error.response.data) {
             const bizError = error.response.data
-            ElMessage.error(bizError.msg || '请求失败')
+            // HTTP 401: 未认证 — 静默跳转登录页
             if (error.response.status === 401) {
-                localStorage.clear()
-                router.push('/login')
+                handle401()
+            } else {
+                ElMessage.error(bizError.msg || '请求失败')
             }
         } else {
             ElMessage.error('网络连接异常，请检查后端服务')
@@ -119,5 +122,25 @@ service.interceptors.response.use(
         return Promise.reject(error)
     }
 )
+
+// 统一处理 401：清除状态并跳转登录页（防止并发请求重复触发）
+function handle401() {
+    if (isHandling401) return
+    isHandling401 = true
+    // 清除 Pinia store 中的认证状态
+    import('@/store/auth').then(({ useAuthStore }) => {
+        const authStore = useAuthStore()
+        authStore.token = ''
+        authStore.userInfo = null
+        authStore.roles = []
+    }).catch(() => {})
+    localStorage.clear()
+    router.push('/login').then(() => {
+        // 路由跳转完成后重置标志，允许后续 401 处理
+        isHandling401 = false
+    }).catch(() => {
+        isHandling401 = false
+    })
+}
 
 export default service

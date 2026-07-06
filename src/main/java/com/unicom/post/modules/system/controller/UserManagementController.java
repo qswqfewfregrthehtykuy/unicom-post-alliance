@@ -2,8 +2,10 @@ package com.unicom.post.modules.system.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.unicom.post.common.exception.BusinessException;
 import com.unicom.post.common.result.Result;
 import com.unicom.post.common.utils.IpUtils;
+import com.unicom.post.common.utils.SecurityUtils;
 import com.unicom.post.modules.auth.domain.entity.SysUser;
 import com.unicom.post.modules.auth.service.SysUserService;
 import com.unicom.post.modules.system.dto.UserCreateRequest;
@@ -85,6 +87,12 @@ public class UserManagementController {
     public Result<String> updateUserStatus(@PathVariable Long userId,
                                             @RequestParam Integer status,
                                             HttpServletRequest httpRequest) {
+        // 禁止管理员禁用/停用自己的账号
+        Long currentUserId = SecurityUtils.getCurrentUserId();
+        if (currentUserId.equals(userId) && status == 0) {
+            throw new BusinessException(400, "不能禁用自己的账号");
+        }
+
         String ip = IpUtils.getClientIp(httpRequest);
         SysUser before = userService.getById(userId);
         String beforeData = toJson(before);

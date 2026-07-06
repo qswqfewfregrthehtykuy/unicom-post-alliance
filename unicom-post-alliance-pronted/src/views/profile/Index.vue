@@ -23,7 +23,7 @@
           </el-tag>
         </el-descriptions-item>
         <el-descriptions-item label="数据权限范围">
-          {{ scopeLabel(userInfo.dataScopeType) }}
+          {{ scopeLabel() }}
         </el-descriptions-item>
         <el-descriptions-item label="最后登录时间">
           {{ userInfo.lastLoginAt || '-' }}
@@ -200,15 +200,26 @@ const roleLabel = (role) => {
   return map[role] || role
 }
 
-// 数据权限标签
-const scopeLabel = (scope) => {
-  const map = {
-    'ALL': '全省',
-    'CITY': '本市',
-    'OUTLET': '本网点',
-    'SELF': '仅自己'
+// 数据权限范围 — 显示具体的城市/网点名称，而非泛称
+const scopeLabel = () => {
+  const scope = userInfo.value.dataScopeType
+  const cityName = userInfo.value.scopeCityName || ''
+  const outletName = userInfo.value.scopeOutletName || ''
+
+  switch (scope) {
+    case 'PROVINCE':
+    case 'ALL':
+      return '全省（江西省全部地市数据）'
+    case 'CITY':
+      return cityName ? `${cityName}（本地市数据）` : '地市级（本地市数据）'
+    case 'OUTLET':
+      return outletName ? `${outletName}（本网点数据）` : '网点级（本网点数据）'
+    case 'SELF':
+    case 'PERSONAL':
+      return '个人专属（仅自己的数据）'
+    default:
+      return scope || '-'
   }
-  return map[scope] || scope || '-'
 }
 
 // 获取发展人信息

@@ -8,6 +8,10 @@ import com.unicom.post.common.utils.PasswordUtils;
 import com.unicom.post.modules.auth.domain.entity.SysUser;
 import com.unicom.post.modules.auth.dto.*;
 import com.unicom.post.modules.auth.service.SysUserService;
+import com.unicom.post.modules.outlet.domain.entity.BizOutlet;
+import com.unicom.post.modules.outlet.mapper.BizOutletMapper;
+import com.unicom.post.modules.system.domain.entity.SysCity;
+import com.unicom.post.modules.system.mapper.SysCityMapper;
 import com.unicom.post.modules.system.service.SysOperationLogService;
 import com.unicom.post.modules.system.service.SysRoleService;
 import lombok.extern.slf4j.Slf4j;
@@ -31,17 +35,23 @@ public class AuthController {
     private final SysUserService userService;
     private final SysRoleService roleService;
     private final JwtUtils jwtUtils;
-    private final SysOperationLogService operationLogService;   // 使用接口类型
+    private final SysOperationLogService operationLogService;
+    private final SysCityMapper cityMapper;
+    private final BizOutletMapper outletMapper;
 
     // 构造器注入，使用 @Qualifier 指定具体的Bean
     public AuthController(SysUserService userService,
                           SysRoleService roleService,
                           JwtUtils jwtUtils,
-                          @Qualifier("operationLogService") SysOperationLogService operationLogService) {
+                          @Qualifier("operationLogService") SysOperationLogService operationLogService,
+                          SysCityMapper cityMapper,
+                          BizOutletMapper outletMapper) {
         this.userService = userService;
         this.roleService = roleService;
         this.jwtUtils = jwtUtils;
         this.operationLogService = operationLogService;
+        this.cityMapper = cityMapper;
+        this.outletMapper = outletMapper;
     }
 
     @PostMapping("/login")
@@ -81,6 +91,8 @@ public class AuthController {
             resp.setDataScopeType(user.getDataScopeType());
             resp.setScopeCityId(user.getScopeCityId());
             resp.setScopeOutletId(user.getScopeOutletId());
+            resp.setScopeCityName(getCityName(user.getScopeCityId()));
+            resp.setScopeOutletName(getOutletName(user.getScopeOutletId()));
             resp.setLastLoginAt(user.getLastLoginAt());
 
             operationLogService.log(module, action, user.getId(), "登录成功", ip, "SUCCESS", null);
@@ -162,6 +174,8 @@ public class AuthController {
         resp.setDataScopeType(user.getDataScopeType());
         resp.setScopeCityId(user.getScopeCityId());
         resp.setScopeOutletId(user.getScopeOutletId());
+        resp.setScopeCityName(getCityName(user.getScopeCityId()));
+        resp.setScopeOutletName(getOutletName(user.getScopeOutletId()));
         resp.setLastLoginAt(user.getLastLoginAt());
         return Result.success(resp);
     }
@@ -240,5 +254,23 @@ public class AuthController {
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
         SysUser user = userService.findByUsername(username);
         return user != null ? user.getId() : null;
+    }
+
+    /**
+     * 根据地市ID查询地市名称
+     */
+    private String getCityName(Long cityId) {
+        if (cityId == null) return null;
+        SysCity city = cityMapper.selectById(cityId);
+        return city != null ? city.getCityName() : null;
+    }
+
+    /**
+     * 根据网点ID查询网点名称
+     */
+    private String getOutletName(Long outletId) {
+        if (outletId == null) return null;
+        BizOutlet outlet = outletMapper.selectById(outletId);
+        return outlet != null ? outlet.getOutletName() : null;
     }
 }
