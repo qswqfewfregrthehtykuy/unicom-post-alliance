@@ -4,9 +4,11 @@
       <el-form :inline="true" :model="query" class="search-form">
         <el-form-item label="转正状态">
           <el-select v-model="query.formalStatus" clearable placeholder="全部" style="width: 130px">
+            <el-option label="未提交" value="N/A" />
             <el-option label="待审" value="PENDING" />
             <el-option label="网点通过" value="OUTLET_APPROVED" />
             <el-option label="地市通过" value="CITY_APPROVED" />
+            <el-option label="省级通过" value="PROVINCE_APPROVED" />
           </el-select>
         </el-form-item>
         <el-form-item label="业务类型">
@@ -128,7 +130,7 @@ const tableLoading = ref(false)
 // 根据当前角色设置默认审核状态
 const defaultFormalStatus = computed(() => {
   const role = authStore.roles?.[0] || ''
-  if (role === 'ROLE_OUTLET') return 'PENDING'
+  if (role === 'ROLE_OUTLET') return ''       // 网点需同时看到「未提交」和「待审」
   if (role === 'ROLE_CITY') return 'OUTLET_APPROVED'
   if (role === 'ROLE_PROVINCE') return 'CITY_APPROVED'
   return ''
@@ -173,8 +175,11 @@ const auditLevel = computed(() => {
 const canAudit = (row) => {
   const status = row.formalStatus
   if (status === 'REJECTED' || status === 'PROVINCE_APPROVED') return false
+  // 意向单必须省级通过才能操作转正
+  if (row.leadStatus !== 'PROVINCE_APPROVED') return false
   const level = auditLevel.value
-  if (level === 'OUTLET' && status === 'PENDING') return true
+  // 网点管理员：可发起转正（N/A）或审核待审单（PENDING）
+  if (level === 'OUTLET' && (status === 'N/A' || status === 'PENDING')) return true
   if (level === 'CITY' && status === 'OUTLET_APPROVED') return true
   if (level === 'PROVINCE' && status === 'CITY_APPROVED') return true
   return false
@@ -183,7 +188,9 @@ const canAudit = (row) => {
 const fetchData = async () => {
   tableLoading.value = true
   try {
-    const res = await getOrderList(query)
+    // 转正审核只看意向单已省级通过的订单
+    const params = { ...query, leadStatus: 'PROVINCE_APPROVED' }
+    const res = await getOrderList(params)
     tableData.value = res.data?.records || []
     total.value = res.data?.total || 0
   } catch (error) { /* 已拦截 */ }
