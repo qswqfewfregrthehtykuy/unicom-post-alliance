@@ -199,47 +199,42 @@
           />
         </el-form-item>
         <el-divider content-position="left">分配比例（三者之和必须等于 1.0000）</el-divider>
-        <el-row :gutter="20">
-          <el-col :span="8">
-            <el-form-item label="网点比例" prop="outletRatio">
-              <el-input-number
-                  v-model="form.outletRatio"
-                  :precision="4"
-                  :step="0.01"
-                  :min="0"
-                  :max="1"
-                  placeholder="0.0000"
-                  style="width: 100%"
-              />
-            </el-form-item>
-          </el-col>
-          <el-col :span="8">
-            <el-form-item label="发展人比例" prop="developerRatio">
-              <el-input-number
-                  v-model="form.developerRatio"
-                  :precision="4"
-                  :step="0.01"
-                  :min="0"
-                  :max="1"
-                  placeholder="0.0000"
-                  style="width: 100%"
-              />
-            </el-form-item>
-          </el-col>
-          <el-col :span="8">
-            <el-form-item label="平台比例" prop="platformRatio">
-              <el-input-number
-                  v-model="form.platformRatio"
-                  :precision="4"
-                  :step="0.01"
-                  :min="0"
-                  :max="1"
-                  placeholder="0.0000"
-                  style="width: 100%"
-              />
-            </el-form-item>
-          </el-col>
-        </el-row>
+        <el-form-item label="网点比例" prop="outletRatio">
+          <el-input-number
+              v-model="form.outletRatio"
+              :precision="4"
+              :step="0.01"
+              :min="0"
+              :max="1"
+              placeholder="0.0000"
+              style="width: 240px"
+          />
+          <span style="margin-left: 8px; color: #909399;">范围 0~1，例如 0.6000 表示 60%</span>
+        </el-form-item>
+        <el-form-item label="发展人比例" prop="developerRatio">
+          <el-input-number
+              v-model="form.developerRatio"
+              :precision="4"
+              :step="0.01"
+              :min="0"
+              :max="1"
+              placeholder="0.0000"
+              style="width: 240px"
+          />
+          <span style="margin-left: 8px; color: #909399;">范围 0~1，例如 0.3000 表示 30%</span>
+        </el-form-item>
+        <el-form-item label="平台比例" prop="platformRatio">
+          <el-input-number
+              v-model="form.platformRatio"
+              :precision="4"
+              :step="0.01"
+              :min="0"
+              :max="1"
+              placeholder="0.0000"
+              style="width: 240px"
+          />
+          <span style="margin-left: 8px; color: #909399;">范围 0~1，例如 0.1000 表示 10%</span>
+        </el-form-item>
         <el-form-item label="生效日期" prop="effectiveDate">
           <el-date-picker
               v-model="form.effectiveDate"
