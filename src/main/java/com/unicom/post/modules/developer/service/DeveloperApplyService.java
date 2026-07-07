@@ -6,6 +6,7 @@ import com.unicom.post.modules.developer.domain.entity.BizDeveloperApply;
 import com.unicom.post.modules.developer.dto.DeveloperApplyAuditRequest;
 import com.unicom.post.modules.developer.dto.DeveloperApplyRequest;
 import com.unicom.post.modules.developer.dto.DeveloperApplyResponse;
+import com.unicom.post.modules.developer.dto.DeveloperCreateRequest;
 
 import java.util.Map;
 
@@ -17,4 +18,9 @@ public interface DeveloperApplyService extends IService<BizDeveloperApply> {
     Map<String, Object> auditApply(Long applyId, DeveloperApplyAuditRequest request,
                                    Long currentUserId, String currentUserRole);
     void rejectApply(Long applyId, String rejectReason, Long currentUserId);
+
+    /**
+     * 管理员直接创建发展人（绕过审核流程）
+     */
+    Map<String, Object> createDeveloper(DeveloperCreateRequest request, Long currentUserId);
 }

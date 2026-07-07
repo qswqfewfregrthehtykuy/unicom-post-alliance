@@ -60,20 +60,11 @@
 <script setup>
 import { ref, watch, defineProps } from 'vue'
 import { getOrderDetail } from '@/api/order'
+import { BUSINESS_TYPES, getBusinessTypeLabel, DEVELOP_SOURCES, getDevelopSourceLabel } from '@/constants/business'
 
-// 字典映射（与列表页保持一致）
-const bizTypeMap = {
-  BROADBAND: '宽带',
-  SIM_CARD: '号卡',
-  SMART_HOME: '智家',
-  MOBILE_CARD: '手机卡'
-}
-const developSourceMap = {
-  STORE: '门店',
-  ONLINE: '线上',
-  COMMUNITY: '社区',
-  SITE_USER: '网点用户'
-}
+// 字典映射 — 从统一常量构建
+const bizTypeMap = Object.fromEntries(BUSINESS_TYPES.map(item => [item.value, item.label]))
+const developSourceMap = Object.fromEntries(DEVELOP_SOURCES.map(item => [item.value, item.label]))
 const leadStatusMap = {
   PENDING: '待审',
   OUTLET_APPROVED: '网点通过',

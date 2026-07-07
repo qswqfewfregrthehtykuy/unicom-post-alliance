@@ -4,9 +4,12 @@
       <el-form :inline="true" :model="query" class="search-form">
         <el-form-item label="业务类型">
           <el-select v-model="query.businessType" clearable placeholder="全部" style="width: 120px">
-            <el-option label="宽带" value="BROADBAND" />
-            <el-option label="号卡" value="SIM_CARD" />
-            <el-option label="智家" value="SMART_HOME" />
+            <el-option
+              v-for="item in BUSINESS_TYPES"
+              :key="item.value"
+              :label="item.label"
+              :value="item.value"
+            />
           </el-select>
         </el-form-item>
         <el-form-item label="意向状态">
@@ -56,7 +59,7 @@
         <el-table-column prop="customerName" label="客户姓名" min-width="100" />
         <el-table-column prop="customerPhone" label="手机号" width="130" />
         <el-table-column prop="businessType" label="业务类型" width="100" align="center">
-          <template #default="{ row }">{{ bizTypeMap[row.businessType] || row.businessType }}</template>
+          <template #default="{ row }">{{ getBusinessTypeLabel(row.businessType) }}</template>
         </el-table-column>
         <el-table-column prop="developSource" label="发展来源" width="100" align="center">
           <template #default="{ row }">{{ sourceMap[row.developSource] || row.developSource }}</template>
@@ -106,6 +109,7 @@ import { ref, reactive, watch } from 'vue'
 import { Search, View } from '@element-plus/icons-vue'
 import { getOrderList } from '@/api/order'
 import OrderDetail from '@/components/OrderDetail.vue'
+import { BUSINESS_TYPES, getBusinessTypeLabel } from '@/constants/business'
 
 const tableLoading = ref(false)
 const query = reactive({
@@ -117,9 +121,6 @@ const tableData = ref([])
 const total = ref(0)
 const detailDrawer = ref(false)
 const currentOrderId = ref(null)
-
-const bizTypeMap = { BROADBAND: '宽带', SIM_CARD: '号卡', SMART_HOME: '智家' }
-const sourceMap = { STORE: '门店', ONLINE: '线上', COMMUNITY: '社区' }
 const statusMap = {
   PENDING: '待审', OUTLET_APPROVED: '网点通过', CITY_APPROVED: '地市通过',
   PROVINCE_APPROVED: '省级通过', REJECTED: '已驳回', 'N/A': '未提交'

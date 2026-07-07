@@ -65,12 +65,11 @@
           <el-select v-model="queryParams.payeeType" placeholder="全部类型" clearable style="width: 110px">
             <el-option label="发展人" value="DEVELOPER" />
             <el-option label="网点" value="OUTLET" />
-            <el-option label="地市" value="CITY" />
-            <el-option label="省级" value="PROVINCE" />
+            <el-option label="平台留存" value="PLATFORM" />
           </el-select>
         </el-form-item>
         <el-form-item label="阶段">
-          <el-select v-model="queryParams.phase" placeholder="全部阶段" clearable style="width: 100px">
+          <el-select v-model="queryParams.commissionPhase" placeholder="全部阶段" clearable style="width: 100px">
             <el-option label="意向" value="LEAD" />
             <el-option label="正式" value="FORMAL" />
           </el-select>
@@ -129,8 +128,8 @@
           :total="total"
           :page-sizes="[10, 20, 50, 100]"
           layout="total, sizes, prev, pager, next"
-          @size-change="handleSearch"
-          @current-change="handleSearch"
+          @size-change="handleSizeChange"
+          @current-change="handlePageChange"
         />
       </div>
     </el-card>
@@ -144,7 +143,7 @@ import { Search, Download } from '@element-plus/icons-vue'
 import { getCommissionList, getSummary, exportCommission } from '@/api/commission'
 
 const queryParams = reactive({
-  startDate: '', endDate: '', status: '', payeeType: '', phase: '',
+  startDate: '', endDate: '', status: '', payeeType: '', commissionPhase: '',
   keyword: '', pageNo: 1, pageSize: 20
 })
 
@@ -208,9 +207,11 @@ const loadList = async () => {
 }
 
 const handleSearch = () => { queryParams.pageNo = 1; loadList(); loadSummary() }
+const handlePageChange = () => { loadList() }
+const handleSizeChange = () => { queryParams.pageNo = 1; loadList() }
 const resetQuery = () => {
   queryParams.startDate = ''; queryParams.endDate = ''; queryParams.status = ''
-  queryParams.payeeType = ''; queryParams.phase = ''; queryParams.keyword = ''
+  queryParams.payeeType = ''; queryParams.commissionPhase = ''; queryParams.keyword = ''
   queryParams.pageNo = 1; dateRange.value = []; handleSearch()
 }
 

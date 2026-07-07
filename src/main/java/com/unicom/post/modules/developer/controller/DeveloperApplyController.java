@@ -9,6 +9,7 @@ import com.unicom.post.modules.developer.domain.entity.BizDeveloperApply;
 import com.unicom.post.modules.developer.dto.DeveloperApplyAuditRequest;
 import com.unicom.post.modules.developer.dto.DeveloperApplyRequest;
 import com.unicom.post.modules.developer.dto.DeveloperApplyResponse;
+import com.unicom.post.modules.developer.dto.DeveloperCreateRequest;
 import com.unicom.post.modules.developer.service.DeveloperApplyService;
 import com.unicom.post.modules.system.service.SysOperationLogService;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -169,6 +170,41 @@ public class DeveloperApplyController {
         } catch (Exception e) {
             operationLogService.log("DEVELOPER_APPLY", auditAction, applyId,
                     "审核操作失败", ip, "FAIL", e.getMessage());
+            throw e;
+        }
+    }
+
+    /**
+     * 管理员直接创建发展人（绕过审核流程）
+     */
+    @PostMapping("/create")
+    @PreAuthorize("hasAnyRole('PROVINCE','CITY','OUTLET')")
+    public Result<Map<String, Object>> createDeveloper(
+            @Valid @RequestBody DeveloperCreateRequest request,
+            HttpServletRequest httpRequest) {
+
+        String ip = IpUtils.getClientIp(httpRequest);
+        // 从 Authentication 获取当前用户
+        Authentication auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.isAuthenticated()) {
+            return Result.error(401, "未登录");
+        }
+        Object principal = auth.getPrincipal();
+        if (!(principal instanceof UserPrincipal)) {
+            return Result.error(401, "用户信息无效");
+        }
+        UserPrincipal currentUser = (UserPrincipal) principal;
+        Long currentUserId = currentUser.getId();
+
+        try {
+            Map<String, Object> result = applyService.createDeveloper(request, currentUserId);
+            operationLogService.log("DEVELOPER", "直接创建发展人", null,
+                    "创建成功: " + request.getApplicantName() + "(" + request.getApplicantPhone() + ")",
+                    ip, "SUCCESS", null);
+            return Result.success("发展人创建成功，初始密码：" + result.get("tempPassword"), result);
+        } catch (Exception e) {
+            operationLogService.log("DEVELOPER", "直接创建发展人", null,
+                    "创建失败", ip, "FAIL", e.getMessage());
             throw e;
         }
     }

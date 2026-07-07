@@ -13,16 +13,22 @@
       >
         <el-form-item label="业务类型" prop="businessType">
           <el-select v-model="form.businessType" placeholder="请选择业务类型">
-            <el-option label="宽带" value="BROADBAND" />
-            <el-option label="号卡" value="SIM_CARD" />
-            <el-option label="智家" value="SMART_HOME" />
+            <el-option
+              v-for="item in BUSINESS_TYPES"
+              :key="item.value"
+              :label="item.label"
+              :value="item.value"
+            />
           </el-select>
         </el-form-item>
         <el-form-item label="发展来源" prop="developSource">
           <el-select v-model="form.developSource" placeholder="请选择发展来源">
-            <el-option label="门店" value="STORE" />
-            <el-option label="线上" value="ONLINE" />
-            <el-option label="社区" value="COMMUNITY" />
+            <el-option
+              v-for="item in DEVELOP_SOURCES"
+              :key="item.value"
+              :label="item.label"
+              :value="item.value"
+            />
           </el-select>
         </el-form-item>
         <el-form-item label="客户姓名" prop="customerName">
@@ -53,6 +59,7 @@
 import { ref, reactive } from 'vue'
 import { ElMessage } from 'element-plus'
 import { submitOrder } from '@/api/order'
+import { BUSINESS_TYPES, DEVELOP_SOURCES } from '@/constants/business'
 
 const formRef = ref()
 const submitting = ref(false)

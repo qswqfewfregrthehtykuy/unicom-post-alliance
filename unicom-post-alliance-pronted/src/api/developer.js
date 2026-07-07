@@ -48,3 +48,15 @@ export function getDeveloperProfile() {
         method: 'get'
     })
 }
+
+/**
+ * 管理员直接创建发展人（绕过审核流程）
+ * @param {Object} data 发展人信息
+ */
+export function createDeveloper(data) {
+    return request({
+        url: '/api/v1/developer-applies/create',
+        method: 'post',
+        data
+    })
+}

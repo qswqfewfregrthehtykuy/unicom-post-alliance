@@ -11,9 +11,12 @@
         </el-form-item>
         <el-form-item label="业务类型">
           <el-select v-model="query.businessType" clearable placeholder="全部" style="width: 130px">
-            <el-option label="宽带" value="BROADBAND" />
-            <el-option label="号卡" value="SIM_CARD" />
-            <el-option label="智家" value="SMART_HOME" />
+            <el-option
+              v-for="item in BUSINESS_TYPES"
+              :key="item.value"
+              :label="item.label"
+              :value="item.value"
+            />
           </el-select>
         </el-form-item>
         <el-form-item label="关键词">
@@ -117,10 +120,21 @@ import { Search, View, Select, CloseBold } from '@element-plus/icons-vue'
 import { getOrderList, formalAudit, rejectOrder } from '@/api/order'
 import { useAuthStore } from '@/store/auth'
 import OrderDetail from '@/components/OrderDetail.vue'
+import { BUSINESS_TYPES } from '@/constants/business'
 
 const authStore = useAuthStore()
 const tableLoading = ref(false)
-const query = reactive({ businessType: '', formalStatus: 'PENDING', keyword: '', pageNo: 1, pageSize: 20 })
+
+// 根据当前角色设置默认审核状态
+const defaultFormalStatus = computed(() => {
+  const role = authStore.roles?.[0] || ''
+  if (role === 'ROLE_OUTLET') return 'PENDING'
+  if (role === 'ROLE_CITY') return 'OUTLET_APPROVED'
+  if (role === 'ROLE_PROVINCE') return 'CITY_APPROVED'
+  return ''
+})
+
+const query = reactive({ businessType: '', formalStatus: defaultFormalStatus.value, keyword: '', pageNo: 1, pageSize: 20 })
 const tableData = ref([])
 const total = ref(0)
 
@@ -136,7 +150,7 @@ const rejectReason = ref('')
 const detailDrawer = ref(false)
 const currentOrderId = ref(null)
 
-const bizMap = { BROADBAND: '宽带', SIM_CARD: '号卡', SMART_HOME: '智家' }
+const bizMap = Object.fromEntries(BUSINESS_TYPES.map(item => [item.value, item.label]))
 const statusMap = {
   PENDING: '待审', OUTLET_APPROVED: '网点通过', CITY_APPROVED: '地市通过',
   PROVINCE_APPROVED: '省级通过', REJECTED: '已驳回', 'N/A': '未提交'
@@ -177,7 +191,7 @@ const fetchData = async () => {
 }
 
 const handleSearch = () => { query.pageNo = 1; fetchData() }
-const resetQuery = () => { query.businessType = ''; query.formalStatus = 'PENDING'; query.keyword = ''; query.pageNo = 1; fetchData() }
+const resetQuery = () => { query.businessType = ''; query.formalStatus = defaultFormalStatus.value; query.keyword = ''; query.pageNo = 1; fetchData() }
 const openAudit = (row) => { currentRow.value = row; auditForm.status = 'APPROVED'; auditForm.auditRemark = ''; auditDialog.value = true }
 
 const submitAudit = async () => {

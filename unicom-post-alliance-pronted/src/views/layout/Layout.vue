@@ -64,16 +64,14 @@
               <el-icon><Connection /></el-icon>
               <span>发展人管理</span>
             </template>
-            <el-menu-item index="/developer/apply">发展人申请</el-menu-item>
-            <el-menu-item v-if="isAnyRole(['ROLE_PROVINCE','ROLE_CITY','ROLE_OUTLET'])" index="/developer/audit">发展人审核</el-menu-item>
+            <el-menu-item index="/developer/create">
+              <el-icon><CirclePlus /></el-icon>
+              <template #title>直接创建发展人</template>
+            </el-menu-item>
+            <el-menu-item v-if="isRole('ROLE_OUTLET')" index="/developer/apply">发展人申请</el-menu-item>
+            <el-menu-item index="/developer/audit">发展人审核</el-menu-item>
             <el-menu-item v-if="isAnyRole(['ROLE_PROVINCE','ROLE_CITY'])" index="/developer/list">发展人列表</el-menu-item>
           </el-sub-menu>
-
-          <!-- 发展人端独立入口 -->
-          <el-menu-item v-if="isRole('ROLE_DEVELOPER')" index="/developer/apply">
-            <el-icon><EditPen /></el-icon>
-            <template #title>发展人申请</template>
-          </el-menu-item>
 
           <!-- 业务发展 -->
           <el-sub-menu v-if="isAnyRole(['ROLE_PROVINCE','ROLE_CITY','ROLE_OUTLET','ROLE_DEVELOPER'])" index="biz">
@@ -215,7 +213,7 @@ import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/store/auth'
 import {
-  Monitor, User, UserFilled, OfficeBuilding, Connection, EditPen,
+  Monitor, User, UserFilled, OfficeBuilding, Connection, CirclePlus,
   TrendCharts, Checked, Money, DataAnalysis, Setting,
   Expand, Fold, HomeFilled, Refresh, FullScreen, ArrowDown,
   Lock, SwitchButton

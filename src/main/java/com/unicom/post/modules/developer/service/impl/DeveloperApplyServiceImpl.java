@@ -13,6 +13,7 @@ import com.unicom.post.modules.developer.domain.entity.BizDeveloperApply;
 import com.unicom.post.modules.developer.dto.DeveloperApplyAuditRequest;
 import com.unicom.post.modules.developer.dto.DeveloperApplyRequest;
 import com.unicom.post.modules.developer.dto.DeveloperApplyResponse;
+import com.unicom.post.modules.developer.dto.DeveloperCreateRequest;
 import com.unicom.post.modules.developer.mapper.BizAuditLogMapper;
 import com.unicom.post.modules.developer.mapper.BizDeveloperApplyMapper;
 import com.unicom.post.modules.developer.mapper.BizDeveloperMapper;
@@ -313,6 +314,103 @@ public class DeveloperApplyServiceImpl extends ServiceImpl<BizDeveloperApplyMapp
         // 记录审核日志
         saveAuditLog("DEVELOPER_APPLY", applyId, "OUTLET", null,
                 currentUserId, "REJECTED", rejectReason);
+    }
+
+    @Override
+    @Transactional
+    public Map<String, Object> createDeveloper(DeveloperCreateRequest request, Long currentUserId) {
+        // 1. 校验手机号未被注册
+        if (userService.findByPhone(request.getApplicantPhone()) != null) {
+            throw new BusinessException("手机号已被注册，无法创建");
+        }
+        // 2. 校验身份证号未被重复申请
+        LambdaQueryWrapper<BizDeveloperApply> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(BizDeveloperApply::getIdCard, request.getIdCard())
+                .ne(BizDeveloperApply::getStatus, "REJECTED")
+                .eq(BizDeveloperApply::getIsDeleted, 0);
+        if (this.count(wrapper) > 0) {
+            throw new BusinessException("该身份证号已有申请记录");
+        }
+        // 3. 校验网点存在且启用
+        BizOutlet outlet = outletService.getById(request.getOutletId());
+        if (outlet == null || outlet.getStatus() == 0) {
+            throw new BusinessException("网点不存在或已停用");
+        }
+        // 4. 校验区域一致
+        if (!outlet.getCityId().equals(request.getCityId()) ||
+                !outlet.getDistrictId().equals(request.getDistrictId())) {
+            throw new BusinessException("地市区县与网点不匹配");
+        }
+
+        // 5. 创建申请记录（直接设为省级通过）
+        BizDeveloperApply apply = new BizDeveloperApply();
+        apply.setApplicantName(request.getApplicantName());
+        apply.setApplicantPhone(request.getApplicantPhone());
+        apply.setIdCard(request.getIdCard());
+        apply.setDeveloperType(request.getDeveloperType());
+        apply.setCityId(request.getCityId());
+        apply.setDistrictId(request.getDistrictId());
+        apply.setOutletId(request.getOutletId());
+        apply.setShopName(request.getShopName());
+        apply.setShopAddress(request.getShopAddress());
+        apply.setApplyReason("管理员直接创建");
+        apply.setStatus("PROVINCE_APPROVED");
+        apply.setReviewerId(currentUserId);
+        apply.setReviewAt(LocalDateTime.now());
+        apply.setReviewRemark("管理员直接创建，跳过审核流程");
+        this.save(apply);
+
+        // 6. 自动创建发展人用户账号
+        String rawPassword = PasswordUtils.generateRandomPassword();
+        String encodedPassword = PasswordUtils.encode(rawPassword);
+
+        SysUser user = new SysUser();
+        user.setUsername(request.getApplicantPhone());
+        user.setPasswordHash(encodedPassword);
+        user.setRealName(request.getApplicantName());
+        user.setPhone(request.getApplicantPhone());
+        user.setIdCard(request.getIdCard());
+        user.setDataScopeType("OUTLET");
+        user.setScopeOutletId(request.getOutletId());
+        user.setStatus(1);
+        userService.save(user);
+
+        Long roleId = getDeveloperRoleId();
+        userService.assignRoles(user.getId(), Collections.singletonList(roleId));
+
+        // 7. 创建发展人记录
+        BizDeveloper developer = new BizDeveloper();
+        developer.setUserId(user.getId());
+        developer.setApplyId(apply.getId());
+        developer.setOutletId(request.getOutletId());
+        developer.setDeveloperType(request.getDeveloperType());
+        developer.setShopName(request.getShopName());
+        developer.setShopAddress(request.getShopAddress());
+        developer.setCreatedBy(currentUserId);
+        developer.setCreatedOutletAdmin(request.getOutletId());
+        developer.setStatus(1);
+        developer.setJoinDate(LocalDate.now());
+        developerMapper.insert(developer);
+
+        apply.setUserId(user.getId());
+        this.updateById(apply);
+
+        // 8. 记录审核日志
+        saveAuditLog("DEVELOPER_APPLY", apply.getId(), "PROVINCE", null,
+                currentUserId, "APPROVED", "管理员直接创建");
+
+        log.info("管理员直接创建发展人成功，手机号：{}，初始密码：{}", request.getApplicantPhone(), rawPassword);
+
+        // 9. 返回结果
+        Map<String, Object> result = new HashMap<>();
+        result.put("applyId", apply.getId());
+        result.put("userId", user.getId());
+        result.put("developerId", developer.getId());
+        result.put("username", user.getUsername());
+        result.put("tempPassword", rawPassword);
+        result.put("status", "PROVINCE_APPROVED");
+        result.put("message", "发展人创建成功，初始密码已生成");
+        return result;
     }
 
     // ==================== 私有辅助方法 ====================

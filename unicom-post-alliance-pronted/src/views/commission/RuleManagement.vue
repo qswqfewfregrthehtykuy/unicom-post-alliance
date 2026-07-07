@@ -322,30 +322,10 @@ const isProvinceAdmin = computed(() => {
 })
 
 // ========== 下拉选项定义 ==========
-const businessTypeOptions = [
-  { value: 'MOBILE_CARD', label: '移网卡' },
-  { value: 'BROADBAND', label: '宽带' },
-  { value: 'IPTV', label: 'IPTV' },
-  { value: 'SMART_HOME', label: '智慧家庭' },
-  { value: 'OTHER', label: '其他' }
-]
+import { BUSINESS_TYPES, getBusinessTypeLabel, DEVELOP_SOURCES, getDevelopSourceLabel } from '@/constants/business'
 
-const developSourceOptions = [
-  { value: 'SITE_USER', label: '网点用户' },
-  { value: 'CHANNEL', label: '渠道合作' },
-  { value: 'ONLINE', label: '线上推广' },
-  { value: 'OTHER', label: '其他' }
-]
-
-// 标签转换函数（用于表格和详情显示）
-const getBusinessTypeLabel = (value) => {
-  const found = businessTypeOptions.find(item => item.value === value)
-  return found ? found.label : value
-}
-const getDevelopSourceLabel = (value) => {
-  const found = developSourceOptions.find(item => item.value === value)
-  return found ? found.label : value
-}
+const businessTypeOptions = BUSINESS_TYPES
+const developSourceOptions = DEVELOP_SOURCES
 
 // ========== 查询参数 ==========
 const queryParams = reactive({

@@ -96,7 +96,13 @@ const routes = [
                 path: 'developer/apply',
                 name: 'DeveloperApply',
                 component: () => import('@/views/developer/Apply.vue'),
-                meta: { title: '发展人申请', requiresAuth: true, roles: ALL_USERS }
+                meta: { title: '发展人申请', requiresAuth: true, roles: [ROLES.OUTLET] }
+            },
+            {
+                path: 'developer/create',
+                name: 'DeveloperCreate',
+                component: () => import('@/views/developer/DeveloperCreate.vue'),
+                meta: { title: '直接创建发展人', requiresAuth: true, roles: ADMIN_OUTLET }
             },
             {
                 path: 'developer/audit',
