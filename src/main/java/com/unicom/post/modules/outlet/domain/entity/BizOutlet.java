@@ -13,6 +13,10 @@ public class BizOutlet {
     private String outletName;
     private Long cityId;
     private Long districtId;
+    @TableField(exist = false)
+    private String cityName;
+    @TableField(exist = false)
+    private String districtName;
     private String address;
     private String managerName;
     private String managerPhone;

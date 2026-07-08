@@ -11,15 +11,18 @@
       <!-- 搜索栏 -->
       <div class="search-bar">
         <el-form :inline="true" :model="searchForm" @keyup.enter="handleSearch">
-          <el-form-item label="所属地市">
+          <el-form-item v-if="isProvince" label="所属地市">
             <el-select v-model="searchForm.cityId" placeholder="全部" clearable @change="handleSearch">
               <el-option
                   v-for="city in cityList"
                   :key="city.id"
-                  :label="city.orgName"
+                  :label="city.name"
                   :value="city.id"
               />
             </el-select>
+          </el-form-item>
+          <el-form-item v-if="isCity" label="所属地市">
+            <el-input :value="scopeCityName" disabled style="width: 150px" />
           </el-form-item>
           <el-form-item label="关键词">
             <el-input v-model="searchForm.keyword" placeholder="网点名称/编码" clearable />
@@ -87,22 +90,25 @@
         <el-form-item label="名称" prop="outletName">
           <el-input v-model="form.outletName" placeholder="请输入网点名称" />
         </el-form-item>
-        <el-form-item label="所属地市" prop="cityId">
+        <el-form-item v-if="isProvince" label="所属地市" prop="cityId">
           <el-select v-model="form.cityId" placeholder="请选择地市" filterable @change="loadDistricts">
             <el-option
                 v-for="city in cityList"
                 :key="city.id"
-                :label="city.orgName"
+                :label="city.name"
                 :value="city.id"
             />
           </el-select>
+        </el-form-item>
+        <el-form-item v-if="isCity" label="所属地市">
+          <el-input :value="scopeCityName" disabled />
         </el-form-item>
         <el-form-item label="所属区县" prop="districtId">
           <el-select v-model="form.districtId" placeholder="请选择区县" filterable>
             <el-option
                 v-for="dist in districtList"
                 :key="dist.id"
-                :label="dist.orgName"
+                :label="dist.name"
                 :value="dist.id"
             />
           </el-select>
@@ -132,7 +138,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   getOutletList,
@@ -141,7 +147,16 @@ import {
   updateOutletStatus,
   deleteOutlet
 } from '@/api/outlet.js'
-import { getOrgTree, getChildren } from '@/api/org.js'
+import { getCities, getDistrictsWithOutlets } from '@/api/auth'
+import { useAuthStore } from '@/store/auth'
+
+const authStore = useAuthStore()
+const roles = computed(() => authStore.roles || [])
+const isProvince = computed(() => roles.value.includes('ROLE_PROVINCE'))
+const isCity = computed(() => roles.value.includes('ROLE_CITY'))
+const userInfo = computed(() => authStore.userInfo || {})
+const scopeCityId = computed(() => userInfo.value.scopeCityId)
+const scopeCityName = computed(() => userInfo.value.scopeCityName || '本市')
 
 // 地市列表
 const cityList = ref([])
@@ -187,22 +202,22 @@ const rules = {
 
 // 获取地市列表
 const fetchCities = async () => {
-  const res = await getOrgTree(false)
-  if (res.data) {
-    const root = res.data
-    const childrenRes = await getChildren(root.id, 1, 999)
-    cityList.value = childrenRes.data.records || []
-  }
+  try {
+    const res = await getCities()
+    cityList.value = res.data || []
+  } catch { ElMessage.error('加载地市失败') }
 }
 
-// 根据地市加载区县
+// 根据地市加载区县（从 sys_district 表查询）
 const loadDistricts = async (cityId) => {
   if (!cityId) {
     districtList.value = []
     return
   }
-  const res = await getChildren(cityId, 1, 999)
-  districtList.value = res.data.records || []
+  try {
+    const res = await getDistrictsWithOutlets(cityId)
+    districtList.value = res.data || []
+  } catch { ElMessage.error('加载区县失败') }
 }
 
 // 获取网点列表
@@ -212,8 +227,13 @@ const fetchData = async () => {
     const params = {
       pageNo: pageNo.value,
       pageSize: pageSize.value,
-      cityId: searchForm.cityId,
       keyword: searchForm.keyword
+    }
+    // 地市管理员使用锁定的地市ID，省分管理员使用搜索条件中的地市ID
+    if (isCity.value) {
+      params.cityId = scopeCityId.value
+    } else if (searchForm.cityId) {
+      params.cityId = searchForm.cityId
     }
     const res = await getOutletList(params)
     tableData.value = res.data.records || []
@@ -229,8 +249,13 @@ const handleSearch = () => {
 }
 
 const resetSearch = () => {
-  searchForm.cityId = null
   searchForm.keyword = ''
+  // 地市管理员保留锁定的地市
+  if (isCity.value) {
+    searchForm.cityId = scopeCityId.value
+  } else {
+    searchForm.cityId = null
+  }
   handleSearch()
 }
 
@@ -238,20 +263,31 @@ const resetForm = () => {
   form.id = null
   form.outletCode = ''
   form.outletName = ''
-  form.cityId = null
-  form.districtId = null
   form.address = ''
   form.managerName = ''
   form.managerPhone = ''
   form.allianceMaster = ''
   form.remark = ''
-  districtList.value = []
+  // 地市管理员锁定地市
+  if (isCity.value) {
+    form.cityId = scopeCityId.value
+    form.districtId = null
+    loadDistricts(scopeCityId.value)
+  } else {
+    form.cityId = null
+    form.districtId = null
+    districtList.value = []
+  }
   formRef.value?.resetFields()
 }
 
 const handleAdd = () => {
   dialogTitle.value = '新建网点'
   resetForm()
+  // 地市管理员预设地市
+  if (isCity.value) {
+    form.cityId = scopeCityId.value
+  }
   dialogVisible.value = true
 }
 
@@ -269,6 +305,10 @@ const submitForm = async () => {
   await formRef.value.validate()
   submitting.value = true
   try {
+    // 地市管理员强制使用管辖地市
+    if (isCity.value) {
+      form.cityId = scopeCityId.value
+    }
     if (form.id) {
       await updateOutlet(form.id, form)
       ElMessage.success('更新成功')
@@ -307,8 +347,19 @@ const handleDelete = (row) => {
   }).catch(() => {})
 }
 
-onMounted(() => {
-  fetchCities().then(fetchData)
+onMounted(async () => {
+  if (isCity.value) {
+    // 地市管理员：锁定地市，只显示一个城市名供展示，加载该市下的区县
+    searchForm.cityId = scopeCityId.value
+    form.cityId = scopeCityId.value
+    // 构造城市列表（只包含本市），供表单引用
+    cityList.value = [{ id: scopeCityId.value, name: scopeCityName.value }]
+    await loadDistricts(scopeCityId.value)
+    fetchData()
+  } else {
+    await fetchCities()
+    fetchData()
+  }
 })
 </script>
 

@@ -122,8 +122,25 @@ public class BizOrderServiceImpl extends ServiceImpl<BizDevelopmentOrderMapper, 
             LocalDate end = LocalDate.parse(endDate);
             wrapper.le(BizDevelopmentOrder::getCreatedAt, end.atTime(23, 59, 59));
         }
-        // 数据权限过滤：根据角色自动添加过滤条件（此处简化，实际可扩展）
-        // 例如：若角色是CITY，则只查询scope_city_id下的订单
+        // 数据权限过滤：根据角色自动限定可见范围
+        SysUser currentUser = userService.getById(currentUserId);
+        if (currentUser != null) {
+            if ("OUTLET".equals(currentUser.getDataScopeType())) {
+                Long scopeOutletId = currentUser.getScopeOutletId();
+                if (scopeOutletId != null) {
+                    wrapper.eq(BizDevelopmentOrder::getOutletId, scopeOutletId);
+                }
+            } else if ("CITY".equals(currentUser.getDataScopeType())) {
+                Long scopeCityId = currentUser.getScopeCityId();
+                if (scopeCityId != null) {
+                    wrapper.eq(BizDevelopmentOrder::getCityId, scopeCityId);
+                }
+            } else if ("SELF".equals(currentUser.getDataScopeType())) {
+                // 发展人只能看自己的订单
+                wrapper.eq(BizDevelopmentOrder::getDeveloperId, getDeveloperIdByUserId(currentUserId));
+            }
+            // PROVINCE 不做限制，看全部
+        }
         wrapper.orderByDesc(BizDevelopmentOrder::getCreatedAt);
         Page<BizDevelopmentOrder> result = this.page(page, wrapper);
 
@@ -207,6 +224,8 @@ public class BizOrderServiceImpl extends ServiceImpl<BizDevelopmentOrderMapper, 
         if (levelOrder != currentLevel) {
             throw new BusinessException(403, "您没有权限审核该级别");
         }
+        // 校验审核人的管辖范围（只能审核自己及子节点的订单）
+        validateAuditScope(order, currentUserId, currentUserRole);
         // 校验状态流转合法性
         if (!isValidLeadTransition(currentStatus, auditLevel)) {
             throw new BusinessException("当前状态不允许进行该级别审核");
@@ -268,6 +287,8 @@ public class BizOrderServiceImpl extends ServiceImpl<BizDevelopmentOrderMapper, 
         if (levelOrder != currentLevel) {
             throw new BusinessException(403, "您没有权限审核该级别");
         }
+        // 校验审核人的管辖范围（只能审核自己及子节点的订单）
+        validateAuditScope(order, currentUserId, currentUserRole);
         if (!isValidFormalTransition(currentStatus, auditLevel)) {
             throw new BusinessException("当前状态不允许进行该级别审核");
         }
@@ -498,6 +519,52 @@ public class BizOrderServiceImpl extends ServiceImpl<BizDevelopmentOrderMapper, 
     }
 
     // ---------- 辅助方法 ----------
+
+    /**
+     * 校验审核人管辖范围：只能审核自己辖区及子节点的订单
+     * - 网点管理员：只能审核本网点的订单
+     * - 地市管理员：只能审核本市网点的订单
+     * - 省分管理员：可审核所有订单
+     */
+    private void validateAuditScope(BizDevelopmentOrder order, Long currentUserId, String currentUserRole) {
+        SysUser auditor = userService.getById(currentUserId);
+        if (auditor == null) {
+            throw new BusinessException("审核人不存在");
+        }
+        String dataScopeType = auditor.getDataScopeType();
+        // 省分管理员可审核所有
+        if ("PROVINCE".equals(dataScopeType) || "ROLE_PROVINCE".equals(currentUserRole)) {
+            return;
+        }
+        // 获取订单所属网点
+        BizOutlet orderOutlet = outletService.getById(order.getOutletId());
+        if (orderOutlet == null) {
+            throw new BusinessException("订单所属网点不存在");
+        }
+        if ("CITY".equals(dataScopeType) || "ROLE_CITY".equals(currentUserRole)) {
+            Long scopeCityId = auditor.getScopeCityId();
+            if (!scopeCityId.equals(orderOutlet.getCityId())) {
+                throw new BusinessException(403, "只能审核本市网点的业务，该订单不属于您的管辖范围");
+            }
+        } else if ("OUTLET".equals(dataScopeType) || "ROLE_OUTLET".equals(currentUserRole)) {
+            Long scopeOutletId = auditor.getScopeOutletId();
+            if (!scopeOutletId.equals(order.getOutletId())) {
+                throw new BusinessException(403, "只能审核本网点的业务，该订单不属于您的网点");
+            }
+        }
+    }
+
+    /**
+     * 根据 userId 查询对应的发展人 ID
+     */
+    private Long getDeveloperIdByUserId(Long userId) {
+        LambdaQueryWrapper<BizDeveloper> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(BizDeveloper::getUserId, userId)
+                .eq(BizDeveloper::getIsDeleted, 0);
+        BizDeveloper developer = developerMapper.selectOne(wrapper);
+        return developer != null ? developer.getId() : 0L;
+    }
+
     private int getLevelOrder(String level) {
         if ("OUTLET".equals(level)) return 1;
         if ("CITY".equals(level)) return 2;
