@@ -16,4 +16,6 @@ public class OrderSubmitRequest {
     private String customerIdCard;
     private String customerAddress;
     private String remark;
+    /** 发展人ID（可选，网点管理员为发展人代录时传入） */
+    private Long developerId;
 }

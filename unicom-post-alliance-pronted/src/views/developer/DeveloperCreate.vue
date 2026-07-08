@@ -28,19 +28,33 @@
           </el-select>
         </el-form-item>
 
-        <el-form-item label="所属地市" prop="cityId">
+        <!-- 省分管理员：可选择地市 -->
+        <el-form-item v-if="isProvince" label="所属地市" prop="cityId">
           <el-select v-model="form.cityId" placeholder="请选择地市" @change="onCityChange" filterable>
             <el-option v-for="city in cityOptions" :key="city.id" :label="city.name" :value="city.id" />
           </el-select>
         </el-form-item>
 
-        <el-form-item label="所属区县" prop="districtId">
+        <!-- 地市管理员：地市锁定显示 -->
+        <el-form-item v-if="isCity" label="所属地市">
+          <el-input :value="userInfo.scopeCityName || '本市'" disabled />
+        </el-form-item>
+
+        <!-- 网点管理员：直接显示归属网点 -->
+        <el-form-item v-if="isOutlet" label="归属网点">
+          <el-input :value="userInfo.scopeOutletName || '本网点'" disabled />
+          <span style="color: #909399; font-size: 12px; margin-left: 8px;">发展人将直接归属本网点</span>
+        </el-form-item>
+
+        <!-- 省分/地市：可选择区县 -->
+        <el-form-item v-if="!isOutlet" label="所属区县" prop="districtId">
           <el-select v-model="form.districtId" placeholder="请选择区县" @change="onDistrictChange" filterable>
             <el-option v-for="dist in districtOptions" :key="dist.id" :label="dist.name" :value="dist.id" />
           </el-select>
         </el-form-item>
 
-        <el-form-item label="归属网点" prop="outletId">
+        <!-- 省分/地市：可选择网点 -->
+        <el-form-item v-if="!isOutlet" label="归属网点" prop="outletId">
           <el-select v-model="form.outletId" placeholder="请选择归属网点" filterable>
             <el-option v-for="outlet in outletOptions" :key="outlet.id" :label="outlet.name" :value="outlet.id" />
           </el-select>
@@ -84,11 +98,13 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { getCities, getDistrictsWithOutlets } from '@/api/auth'
 import { createDeveloper } from '@/api/developer'
+import { useAuthStore } from '@/store/auth'
 
+const authStore = useAuthStore()
 const formRef = ref(null)
 const form = reactive({
   applicantName: '',
@@ -117,6 +133,13 @@ const rules = {
   districtId: [{ required: true, message: '请选择区县', trigger: 'change' }],
   outletId: [{ required: true, message: '请选择归属网点', trigger: 'change' }]
 }
+
+// 角色判断
+const roles = computed(() => authStore.roles || [])
+const isProvince = computed(() => roles.value.includes('ROLE_PROVINCE'))
+const isCity = computed(() => roles.value.includes('ROLE_CITY'))
+const isOutlet = computed(() => roles.value.includes('ROLE_OUTLET'))
+const userInfo = computed(() => authStore.userInfo || {})
 
 const cityOptions = ref([])
 const districtOptions = ref([])
@@ -177,12 +200,52 @@ const handleSubmit = async () => {
 
 const resetForm = () => {
   formRef.value?.resetFields()
-  form.cityId = null; form.districtId = null; form.outletId = null
+  // 保留角色锁定字段
+  if (isOutlet.value) {
+    form.cityId = userInfo.value.scopeCityId || null
+    form.outletId = userInfo.value.scopeOutletId || null
+  } else if (isCity.value) {
+    form.cityId = userInfo.value.scopeCityId || null
+    form.districtId = null
+    form.outletId = null
+  } else {
+    form.cityId = null; form.districtId = null; form.outletId = null
+  }
   form.developerType = ''
   districtOptions.value = []; outletOptions.value = []
 }
 
-onMounted(() => { loadCities() })
+// 初始化：根据角色加载不同数据
+onMounted(async () => {
+  if (isOutlet.value) {
+    // 网点管理员：直接锁定为本网点，无需选择地市/区县/网点
+    const scopeOutletId = userInfo.value.scopeOutletId
+    if (!scopeOutletId) {
+      ElMessage.error('未配置归属网点，无法创建发展人')
+      return
+    }
+    form.outletId = scopeOutletId
+    form.cityId = userInfo.value.scopeCityId || null
+    // 移除地市/区县/网点的必填校验（已被自动填充）
+    rules.cityId = []
+    rules.districtId = []
+    rules.outletId = []
+  } else if (isCity.value) {
+    // 地市管理员：锁定地市为中国市长，仅加载该市下的区县和网点
+    const scopeCityId = userInfo.value.scopeCityId
+    if (!scopeCityId) {
+      ElMessage.error('未配置归属地市，无法创建发展人')
+      return
+    }
+    form.cityId = scopeCityId
+    rules.cityId = [] // 移除地市必填校验
+    cityOptions.value = [] // 不需要地市下拉
+    await onCityChange(scopeCityId)
+  } else {
+    // 省分管理员：加载所有地市供选择
+    loadCities()
+  }
+})
 </script>
 
 <style scoped>

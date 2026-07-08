@@ -31,6 +31,16 @@
             />
           </el-select>
         </el-form-item>
+        <el-form-item v-if="isOutletRole" label="发展人" prop="developerId">
+          <el-select v-model="form.developerId" placeholder="请选择发展人（可选）" clearable filterable>
+            <el-option
+              v-for="dev in developerList"
+              :key="dev.id"
+              :label="`${dev.name} (${dev.phone})`"
+              :value="dev.id"
+            />
+          </el-select>
+        </el-form-item>
         <el-form-item label="客户姓名" prop="customerName">
           <el-input v-model="form.customerName" placeholder="请输入客户姓名" />
         </el-form-item>
@@ -56,17 +66,27 @@
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { submitOrder } from '@/api/order'
+import { getDeveloperList } from '@/api/developer'
+import { useAuthStore } from '@/store/auth'
 import { BUSINESS_TYPES, DEVELOP_SOURCES } from '@/constants/business'
 
+const authStore = useAuthStore()
 const formRef = ref()
 const submitting = ref(false)
+const developerList = ref([])
+
+const isOutletRole = computed(() => {
+  const roles = authStore.roles || []
+  return roles.includes('ROLE_OUTLET')
+})
 
 const form = reactive({
   businessType: '',
   developSource: '',
+  developerId: null,
   customerName: '',
   customerPhone: '',
   customerIdCard: '',
@@ -88,7 +108,12 @@ const handleSubmit = async () => {
   await formRef.value.validate()
   submitting.value = true
   try {
-    const res = await submitOrder(form)
+    const submitData = { ...form }
+    // 如果没有选择发展人，移除 developerId 字段
+    if (!submitData.developerId) {
+      delete submitData.developerId
+    }
+    const res = await submitOrder(submitData)
     ElMessage.success(`发展记录提交成功，订单号：${res.data.orderNo}`)
     resetForm()
   } catch (error) {
@@ -103,6 +128,7 @@ const resetForm = () => {
   Object.assign(form, {
     businessType: '',
     developSource: '',
+    developerId: null,
     customerName: '',
     customerPhone: '',
     customerIdCard: '',
@@ -110,6 +136,21 @@ const resetForm = () => {
     remark: ''
   })
 }
+
+// 网点管理员加载发展人列表
+const loadDeveloperList = async () => {
+  if (!isOutletRole.value) return
+  try {
+    const res = await getDeveloperList()
+    developerList.value = res.data || []
+  } catch {
+    // 加载失败不影响录单
+  }
+}
+
+onMounted(() => {
+  loadDeveloperList()
+})
 </script>
 
 <style scoped>

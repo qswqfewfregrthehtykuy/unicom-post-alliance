@@ -30,7 +30,8 @@ public interface CommissionDetailMapper extends BaseMapper<BizCommissionDetail> 
             "d.total_amount, d.ratio, d.amount, d.status, d.settle_at, d.created_at " +
             "FROM biz_commission_detail d " +
             "LEFT JOIN biz_outlet o ON d.payee_type = 'OUTLET' AND d.payee_id = o.id AND o.is_deleted = 0 " +
-            "LEFT JOIN sys_user u ON d.payee_type = 'DEVELOPER' AND d.payee_id = u.id AND u.is_deleted = 0 " +
+            "LEFT JOIN biz_developer bd ON d.payee_type = 'DEVELOPER' AND d.payee_id = bd.id AND bd.is_deleted = 0 " +
+            "LEFT JOIN sys_user u ON bd.user_id = u.id AND u.is_deleted = 0 " +
             "LEFT JOIN biz_development_order ord ON d.order_id = ord.id AND ord.is_deleted = 0 " +
             "WHERE d.is_deleted = 0 " +
             "<if test='query.payeeType != null and query.payeeType != \"\"'> AND d.payee_type = #{query.payeeType} </if>" +
@@ -44,7 +45,7 @@ public interface CommissionDetailMapper extends BaseMapper<BizCommissionDetail> 
             // 数据权限：根据当前用户角色动态添加
             "<if test='user.dataScopeType == \"CITY\"'> AND ord.city_id = #{user.scopeCityId} </if>" +
             "<if test='user.dataScopeType == \"OUTLET\"'> AND ord.outlet_id = #{user.scopeOutletId} </if>" +
-            "<if test='user.dataScopeType == \"SELF\"'> AND d.payee_type = 'DEVELOPER' AND d.payee_id = #{user.id} </if>" +
+            "<if test='user.dataScopeType == \"SELF\"'> AND d.payee_type = 'DEVELOPER' AND d.payee_id IN (SELECT id FROM biz_developer WHERE user_id = #{user.id} AND is_deleted = 0) </if>" +
             "ORDER BY d.created_at DESC" +
             "</script>")
     Page<CommissionDetailVO> selectCommissionDetailPage(Page<CommissionDetailVO> page,
@@ -77,7 +78,7 @@ public interface CommissionDetailMapper extends BaseMapper<BizCommissionDetail> 
             "<if test='query.endDate != null'> AND DATE(d.created_at) &lt;= #{query.endDate} </if>" +
             "<if test='user.dataScopeType == \"CITY\"'> AND ord.city_id = #{user.scopeCityId} </if>" +
             "<if test='user.dataScopeType == \"OUTLET\"'> AND ord.outlet_id = #{user.scopeOutletId} </if>" +
-            "<if test='user.dataScopeType == \"SELF\"'> AND d.payee_type = 'DEVELOPER' AND d.payee_id = #{user.id} </if>" +
+            "<if test='user.dataScopeType == \"SELF\"'> AND d.payee_type = 'DEVELOPER' AND d.payee_id IN (SELECT id FROM biz_developer WHERE user_id = #{user.id} AND is_deleted = 0) </if>" +
             "</script>")
     SummaryBaseData selectSummaryBaseData(@Param("query") CommissionDetailQueryDTO query,
                                           @Param("user") SysUser user);
@@ -103,7 +104,7 @@ public interface CommissionDetailMapper extends BaseMapper<BizCommissionDetail> 
             "<if test='query.endDate != null'> AND DATE(d.created_at) &lt;= #{query.endDate} </if>" +
             "<if test='user.dataScopeType == \"CITY\"'> AND ord.city_id = #{user.scopeCityId} </if>" +
             "<if test='user.dataScopeType == \"OUTLET\"'> AND ord.outlet_id = #{user.scopeOutletId} </if>" +
-            "<if test='user.dataScopeType == \"SELF\"'> AND d.payee_type = 'DEVELOPER' AND d.payee_id = #{user.id} </if>" +
+            "<if test='user.dataScopeType == \"SELF\"'> AND d.payee_type = 'DEVELOPER' AND d.payee_id IN (SELECT id FROM biz_developer WHERE user_id = #{user.id} AND is_deleted = 0) </if>" +
             "GROUP BY d.payee_type" +
             "</script>")
     List<ByPayeeItem> selectByPayeeGroup(@Param("query") CommissionDetailQueryDTO query,
@@ -129,7 +130,7 @@ public interface CommissionDetailMapper extends BaseMapper<BizCommissionDetail> 
             "<if test='query.endDate != null'> AND DATE(d.created_at) &lt;= #{query.endDate} </if>" +
             "<if test='user.dataScopeType == \"CITY\"'> AND ord.city_id = #{user.scopeCityId} </if>" +
             "<if test='user.dataScopeType == \"OUTLET\"'> AND ord.outlet_id = #{user.scopeOutletId} </if>" +
-            "<if test='user.dataScopeType == \"SELF\"'> AND d.payee_type = 'DEVELOPER' AND d.payee_id = #{user.id} </if>" +
+            "<if test='user.dataScopeType == \"SELF\"'> AND d.payee_type = 'DEVELOPER' AND d.payee_id IN (SELECT id FROM biz_developer WHERE user_id = #{user.id} AND is_deleted = 0) </if>" +
             "GROUP BY d.commission_phase" +
             "</script>")
     List<ByPhaseItem> selectByPhaseGroup(@Param("query") CommissionDetailQueryDTO query,

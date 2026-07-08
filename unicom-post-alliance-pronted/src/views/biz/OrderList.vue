@@ -111,6 +111,10 @@ import { getOrderList } from '@/api/order'
 import OrderDetail from '@/components/OrderDetail.vue'
 import { BUSINESS_TYPES, getBusinessTypeLabel } from '@/constants/business'
 
+const sourceMap = {
+  SITE_USER: '发展人发展', OUTLET_SELF: '网点自发展', CHANNEL: '渠道合作', ONLINE: '线上推广', OTHER: '其他'
+}
+
 const tableLoading = ref(false)
 const query = reactive({
   businessType: '', leadStatus: '', formalStatus: '', keyword: '',

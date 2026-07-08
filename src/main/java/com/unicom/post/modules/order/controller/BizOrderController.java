@@ -71,8 +71,8 @@ public class BizOrderController {
                 throw new BusinessException("当前用户未绑定网点，请联系管理员");
             }
             outletId = user.getScopeOutletId();
-            // 网点自发展，没有发展人
-            developerId = null;
+            // 优先使用请求中传入的发展人ID（网点管理员可代发展人录单）
+            developerId = request.getDeveloperId();
         } else if ("ROLE_DEVELOPER".equals(currentUserRole)) {
             // 发展人：查询关联的发展人记录
             BizDeveloper developer = developerMapper.selectOne(

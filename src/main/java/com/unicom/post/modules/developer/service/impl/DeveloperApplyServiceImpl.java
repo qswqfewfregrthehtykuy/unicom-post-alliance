@@ -319,6 +319,47 @@ public class DeveloperApplyServiceImpl extends ServiceImpl<BizDeveloperApplyMapp
     @Override
     @Transactional
     public Map<String, Object> createDeveloper(DeveloperCreateRequest request, Long currentUserId) {
+        // 0. 获取当前用户信息，确定角色权限
+        SysUser currentUser = userService.getById(currentUserId);
+        if (currentUser == null) {
+            throw new BusinessException("当前用户不存在");
+        }
+        String dataScopeType = currentUser.getDataScopeType();
+
+        // 根据角色锁定归属范围
+        if ("OUTLET".equals(dataScopeType)) {
+            // 网点管理员：强制归属本网点，忽略请求中的地市/区县/网点
+            Long scopeOutletId = currentUser.getScopeOutletId();
+            if (scopeOutletId == null) {
+                throw new BusinessException("网点管理员未配置归属网点");
+            }
+            BizOutlet outlet = outletService.getById(scopeOutletId);
+            if (outlet == null || outlet.getStatus() == 0) {
+                throw new BusinessException("归属网点不存在或已停用");
+            }
+            request.setOutletId(scopeOutletId);
+            request.setCityId(outlet.getCityId());
+            request.setDistrictId(outlet.getDistrictId());
+        } else if ("CITY".equals(dataScopeType)) {
+            // 地市管理员：只能在本市范围内选择网点
+            Long scopeCityId = currentUser.getScopeCityId();
+            if (scopeCityId == null) {
+                throw new BusinessException("地市管理员未配置归属地市");
+            }
+            if (!scopeCityId.equals(request.getCityId())) {
+                throw new BusinessException("只能在本市范围内创建发展人");
+            }
+            // 校验网点属于该市
+            BizOutlet outlet = outletService.getById(request.getOutletId());
+            if (outlet == null || outlet.getStatus() == 0) {
+                throw new BusinessException("网点不存在或已停用");
+            }
+            if (!scopeCityId.equals(outlet.getCityId())) {
+                throw new BusinessException("所选网点不在您的管辖范围内");
+            }
+        }
+        // PROVINCE 管理员：无额外限制，使用请求中的参数
+
         // 1. 校验手机号未被注册
         if (userService.findByPhone(request.getApplicantPhone()) != null) {
             throw new BusinessException("手机号已被注册，无法创建");

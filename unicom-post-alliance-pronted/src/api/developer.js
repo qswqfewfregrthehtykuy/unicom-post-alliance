@@ -60,3 +60,15 @@ export function createDeveloper(data) {
         data
     })
 }
+
+/**
+ * 获取发展人列表（供录单时选择发展人）
+ * @param {Object} params - { outletId }
+ */
+export function getDeveloperList(params) {
+    return request({
+        url: '/api/v1/developer/list',
+        method: 'get',
+        params
+    })
+}
