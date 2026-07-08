@@ -3,7 +3,12 @@
     <!-- 搜索筛选 -->
     <el-card shadow="hover" class="filter-card">
       <el-form :model="queryParams" inline>
-        <el-form-item label="状态">
+        <!-- 审核模式：状态锁定为当前角色可以审核的状态 -->
+        <el-form-item v-if="mode === 'audit'" label="审核状态">
+          <el-input :value="auditStatusLabel[queryParams.status] || queryParams.status" disabled style="width: 150px" />
+        </el-form-item>
+        <!-- 列表模式：可选择状态 -->
+        <el-form-item v-else label="状态">
           <el-select v-model="queryParams.status" placeholder="全部状态" clearable>
             <el-option label="待审核" value="PENDING" />
             <el-option label="网点已批" value="OUTLET_APPROVED" />
@@ -182,6 +187,10 @@ const currentRole = computed(() => {
   return role
 })
 
+// 审核模式下需要审核的状态映射
+const auditStatusMap = { OUTLET: 'PENDING', CITY: 'OUTLET_APPROVED', PROVINCE: 'CITY_APPROVED' }
+const auditStatusLabel = { PENDING: '待审核', OUTLET_APPROVED: '网点已批', CITY_APPROVED: '地市已批' }
+
 // 查询参数
 const queryParams = reactive({
   status: '',
@@ -253,7 +262,12 @@ const handleSearch = () => {
 }
 
 const resetQuery = () => {
-  queryParams.status = ''
+  // 审核模式下保留状态锁定
+  if (props.mode === 'audit') {
+    queryParams.status = auditStatusMap[currentRole.value] || ''
+  } else {
+    queryParams.status = ''
+  }
   queryParams.cityId = null
   queryParams.outletId = null
   queryParams.keyword = ''
@@ -368,6 +382,10 @@ const handleAuditFromDetail = (action) => {
 }
 
 onMounted(() => {
+  // 审核模式：自动锁定为当前角色可审核的状态
+  if (props.mode === 'audit') {
+    queryParams.status = auditStatusMap[currentRole.value] || ''
+  }
   loadCities()
   fetchList()
 })

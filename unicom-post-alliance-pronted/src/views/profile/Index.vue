@@ -96,9 +96,12 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/store/auth'
 import { changePassword } from '@/api/auth'
+
+const router = useRouter()
 
 const authStore = useAuthStore()
 const passwordFormRef = ref(null)
@@ -170,15 +173,20 @@ const handleChangePassword = async () => {
       newPassword: passwordForm.newPassword,
       confirmPassword: passwordForm.confirmPassword
     })
-    ElMessage.success('密码修改成功，请重新登录')
     resetPasswordForm()
-    // 退出登录
-    setTimeout(() => {
-      authStore.handleLogout()
-      window.location.href = '/login'
-    }, 1500)
+    // 弹窗提示用户重新登录
+    await ElMessageBox.alert('密码修改成功，请使用新密码重新登录', '修改成功', {
+      confirmButtonText: '重新登录',
+      type: 'success',
+      center: true
+    })
+    // 用户点击确认后退出并跳转登录页
+    await authStore.handleLogout()
+    router.push('/login')
   } catch (err) {
-    ElMessage.error(err.message || '密码修改失败')
+    if (err !== 'cancel' && err !== 'close') {
+      ElMessage.error(err.message || '密码修改失败')
+    }
   } finally {
     submitting.value = false
   }
