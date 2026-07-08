@@ -3,7 +3,7 @@
     <el-card shadow="never" class="search-card">
       <el-form :inline="true" :model="query" class="search-form">
         <el-form-item label="业务类型">
-          <el-select v-model="query.businessType" clearable placeholder="全部" style="width: 120px">
+          <el-select v-model="query.businessType" clearable placeholder="全部">
             <el-option
               v-for="item in BUSINESS_TYPES"
               :key="item.value"
@@ -13,7 +13,7 @@
           </el-select>
         </el-form-item>
         <el-form-item label="意向状态">
-          <el-select v-model="query.leadStatus" clearable placeholder="全部" style="width: 120px">
+          <el-select v-model="query.leadStatus" clearable placeholder="全部">
             <el-option label="待审" value="PENDING" />
             <el-option label="网点通过" value="OUTLET_APPROVED" />
             <el-option label="地市通过" value="CITY_APPROVED" />
@@ -22,7 +22,7 @@
           </el-select>
         </el-form-item>
         <el-form-item label="转正状态">
-          <el-select v-model="query.formalStatus" clearable placeholder="全部" style="width: 120px">
+          <el-select v-model="query.formalStatus" clearable placeholder="全部">
             <el-option label="未提交" value="N/A" />
             <el-option label="待审" value="PENDING" />
             <el-option label="网点通过" value="OUTLET_APPROVED" />

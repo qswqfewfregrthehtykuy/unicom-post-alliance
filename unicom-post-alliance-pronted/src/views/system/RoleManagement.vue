@@ -231,7 +231,7 @@ const removeUserFromRole = async (user) => {
     } else { ElMessage.error(response.msg || '移出成员失败') }
   } catch (error) {
     console.error(error)
-    ElMessage.error(error.response?.data?.msg || '操作异常')
+    // Axios 拦截器已统一显示错误提示，此处仅记录日志
   }
 }
 
@@ -244,7 +244,7 @@ const remoteSearchUsers = async (query) => {
     searchUserOptions.value = rawBody.list || rawBody.records || []
   } catch (error) {
     console.error('搜索用户失败:', error)
-    ElMessage.error('搜索用户失败')
+    // Axios 拦截器已统一显示错误提示
   } finally { searchLoading.value = false }
 }
 
@@ -268,7 +268,7 @@ const addMember = async () => {
     selectedUserId.value = null; selectedUserInfo.value = null; searchUserOptions.value = []
   } catch (error) {
     console.error('添加成员失败:', error)
-    ElMessage.error(error.response?.data?.msg || '添加失败')
+    // Axios 拦截器已统一显示错误提示
   }
 }
 

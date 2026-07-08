@@ -21,13 +21,6 @@
           <el-input v-model="form.idCard" placeholder="18位身份证号码" />
         </el-form-item>
 
-        <el-form-item label="发展人类型" prop="developerType">
-          <el-select v-model="form.developerType" placeholder="请选择类型">
-            <el-option label="社会加盟商（自由店铺）" value="FREE_SHOP" />
-            <el-option label="自营网点人员" value="SELF_EMPLOYED" />
-          </el-select>
-        </el-form-item>
-
         <!-- 省分管理员：可选择地市 -->
         <el-form-item v-if="isProvince" label="所属地市" prop="cityId">
           <el-select v-model="form.cityId" placeholder="请选择地市" @change="onCityChange" filterable>
@@ -110,7 +103,7 @@ const form = reactive({
   applicantName: '',
   applicantPhone: '',
   idCard: '',
-  developerType: '',
+  developerType: 'SELF_EMPLOYED',
   cityId: null,
   districtId: null,
   outletId: null,
@@ -128,7 +121,6 @@ const rules = {
     { required: true, message: '请输入身份证号', trigger: 'blur' },
     { pattern: /^\d{17}[\dXx]$/, message: '身份证号格式不正确', trigger: 'blur' }
   ],
-  developerType: [{ required: true, message: '请选择发展人类型', trigger: 'change' }],
   cityId: [{ required: true, message: '请选择地市', trigger: 'change' }],
   districtId: [{ required: true, message: '请选择区县', trigger: 'change' }],
   outletId: [{ required: true, message: '请选择归属网点', trigger: 'change' }]
@@ -211,7 +203,6 @@ const resetForm = () => {
   } else {
     form.cityId = null; form.districtId = null; form.outletId = null
   }
-  form.developerType = ''
   districtOptions.value = []; outletOptions.value = []
 }
 

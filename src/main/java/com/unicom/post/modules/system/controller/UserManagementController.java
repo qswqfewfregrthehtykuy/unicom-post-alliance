@@ -121,7 +121,7 @@ public class UserManagementController {
             userService.deleteUser(userId);
             operationLogService.logDetail("USER", "删除用户", userId, "User",
                     "删除用户成功", beforeData, null, ip, "SUCCESS", null);
-            return Result.success("账号已注销");
+            return Result.success("账号已删除");
         } catch (Exception e) {
             operationLogService.logDetail("USER", "删除用户", userId, "User",
                     "删除用户失败", beforeData, null, ip, "FAIL", e.getMessage());

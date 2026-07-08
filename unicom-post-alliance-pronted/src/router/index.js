@@ -96,7 +96,7 @@ const routes = [
                 path: 'developer/apply',
                 name: 'DeveloperApply',
                 component: () => import('@/views/developer/Apply.vue'),
-                meta: { title: '发展人申请', requiresAuth: true, roles: [ROLES.OUTLET] }
+                meta: { title: '发展人申请', requiresAuth: true, roles: ADMIN_OUTLET }
             },
             {
                 path: 'developer/create',

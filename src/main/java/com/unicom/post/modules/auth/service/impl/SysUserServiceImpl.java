@@ -8,6 +8,16 @@ import com.unicom.post.common.utils.PasswordUtils;
 import com.unicom.post.modules.auth.domain.entity.SysUser;
 import com.unicom.post.modules.auth.mapper.SysUserMapper;
 import com.unicom.post.modules.auth.service.SysUserService;
+import com.unicom.post.modules.developer.domain.entity.BizDeveloper;
+import com.unicom.post.modules.developer.domain.entity.BizDeveloperApply;
+import com.unicom.post.modules.developer.mapper.BizDeveloperApplyMapper;
+import com.unicom.post.modules.developer.mapper.BizDeveloperMapper;
+import com.unicom.post.modules.order.domain.entity.BizCommissionDetailb;
+import com.unicom.post.modules.order.domain.entity.BizDevelopmentOrder;
+import com.unicom.post.modules.order.mapper.BizCommissionDetailMapper;
+import com.unicom.post.modules.order.mapper.BizDevelopmentOrderMapper;
+import com.unicom.post.modules.outlet.domain.entity.BizOutlet;
+import com.unicom.post.modules.outlet.mapper.BizOutletMapper;
 import com.unicom.post.modules.system.domain.entity.SysUserRole;
 import com.unicom.post.modules.system.dto.UserCreateRequest;
 import com.unicom.post.modules.system.dto.UserUpdateRequest;
@@ -25,9 +35,24 @@ import java.util.stream.Collectors;
 public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> implements SysUserService {
 
     private final SysUserRoleMapper userRoleMapper;
+    private final BizDeveloperMapper developerMapper;
+    private final BizDeveloperApplyMapper developerApplyMapper;
+    private final BizCommissionDetailMapper commissionDetailMapper;
+    private final BizDevelopmentOrderMapper orderMapper;
+    private final BizOutletMapper outletMapper;
 
-    public SysUserServiceImpl(SysUserRoleMapper userRoleMapper) {
+    public SysUserServiceImpl(SysUserRoleMapper userRoleMapper,
+                               BizDeveloperMapper developerMapper,
+                               BizDeveloperApplyMapper developerApplyMapper,
+                               BizCommissionDetailMapper commissionDetailMapper,
+                               BizDevelopmentOrderMapper orderMapper,
+                               BizOutletMapper outletMapper) {
         this.userRoleMapper = userRoleMapper;
+        this.developerMapper = developerMapper;
+        this.developerApplyMapper = developerApplyMapper;
+        this.commissionDetailMapper = commissionDetailMapper;
+        this.orderMapper = orderMapper;
+        this.outletMapper = outletMapper;
     }
 
     @Override
@@ -125,13 +150,23 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         if (exist == null) {
             throw new BusinessException("用户不存在");
         }
-        if (request.getRealName() != null) exist.setRealName(request.getRealName());
+        boolean nameChanged = false;
+        String newName = null;
+        if (request.getRealName() != null) {
+            exist.setRealName(request.getRealName());
+            nameChanged = true;
+            newName = request.getRealName();
+        }
+        boolean phoneChanged = false;
+        String newPhone = null;
         if (request.getPhone() != null) {
             SysUser other = this.findByPhone(request.getPhone());
             if (other != null && !other.getId().equals(userId)) {
                 throw new BusinessException("手机号已被其他用户使用");
             }
             exist.setPhone(request.getPhone());
+            phoneChanged = true;
+            newPhone = request.getPhone();
         }
         if (request.getDataScopeType() != null) {
             exist.setDataScopeType(request.getDataScopeType());
@@ -146,6 +181,18 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         }
         if (request.getRemark() != null) exist.setRemark(request.getRemark());
         this.updateById(exist);
+
+        // 同步更新关联的发展人申请记录中的姓名和手机号
+        if (nameChanged || phoneChanged) {
+            List<BizDeveloperApply> applies = developerApplyMapper.selectList(
+                    new LambdaQueryWrapper<BizDeveloperApply>()
+                            .eq(BizDeveloperApply::getUserId, userId));
+            for (BizDeveloperApply apply : applies) {
+                if (nameChanged) apply.setApplicantName(newName);
+                if (phoneChanged) apply.setApplicantPhone(newPhone);
+                developerApplyMapper.updateById(apply);
+            }
+        }
 
         if (request.getRoleIds() != null && !request.getRoleIds().isEmpty()) {
             assignRoles(userId, request.getRoleIds());
@@ -164,14 +211,58 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
     }
 
     @Override
+    @Transactional
     public boolean deleteUser(Long userId) {
         SysUser user = this.getById(userId);
         if (user == null) {
             throw new BusinessException("用户不存在");
         }
-        user.setIsDeleted(1);
-        user.setStatus(0);
-        return this.updateById(user);
+
+        // 1. 处理关联的发展人记录及其数据
+        BizDeveloper developer = developerMapper.selectOne(
+                new LambdaQueryWrapper<BizDeveloper>()
+                        .eq(BizDeveloper::getUserId, userId));
+        if (developer != null) {
+            // 1a. 删除该发展人的佣金明细
+            commissionDetailMapper.delete(new LambdaQueryWrapper<BizCommissionDetailb>()
+                    .eq(BizCommissionDetailb::getPayeeType, "DEVELOPER")
+                    .eq(BizCommissionDetailb::getPayeeId, developer.getId()));
+            // 1b. 解除订单与发展人的关联
+            List<BizDevelopmentOrder> orders = orderMapper.selectList(
+                    new LambdaQueryWrapper<BizDevelopmentOrder>()
+                            .eq(BizDevelopmentOrder::getDeveloperId, developer.getId()));
+            for (BizDevelopmentOrder order : orders) {
+                order.setDeveloperId(null);
+                orderMapper.updateById(order);
+            }
+            // 1c. 删除发展人记录
+            developerMapper.deleteById(developer.getId());
+        }
+
+        // 2. 删除发展人申请记录
+        List<BizDeveloperApply> applies = developerApplyMapper.selectList(
+                new LambdaQueryWrapper<BizDeveloperApply>()
+                        .eq(BizDeveloperApply::getUserId, userId));
+        for (BizDeveloperApply apply : applies) {
+            developerApplyMapper.deleteById(apply.getId());
+        }
+
+        // 3. 清理角色关联
+        userRoleMapper.deleteByUserId(userId);
+
+        // 4. 解除网点管理员绑定
+        BizOutlet outlet = outletMapper.selectOne(
+                new LambdaQueryWrapper<BizOutlet>()
+                        .eq(BizOutlet::getAdminUserId, userId));
+        if (outlet != null) {
+            outlet.setAdminUserId(null);
+            outletMapper.updateById(outlet);
+        }
+
+        // 5. 物理删除用户
+        baseMapper.physicalDeleteById(userId);
+        log.info("用户及其关联数据已删除，userId: {}", userId);
+        return true;
     }
 
     @Override

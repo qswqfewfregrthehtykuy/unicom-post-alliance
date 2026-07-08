@@ -28,12 +28,12 @@
           </el-select>
         </el-form-item>
         <el-form-item label="网点">
-          <el-select v-model="queryParams.outletId" placeholder="全部网点" clearable>
+          <el-select v-model="queryParams.outletId" :placeholder="queryParams.cityId ? '全部网点' : '请先选择地市'" clearable :disabled="!queryParams.cityId">
             <el-option
                 v-for="outlet in filterOutletOptions"
-                :key="outlet.outletId"
-                :label="outlet.outletName"
-                :value="outlet.outletId"
+                :key="outlet.id"
+                :label="outlet.name"
+                :value="outlet.id"
             />
           </el-select>
         </el-form-item>
@@ -164,7 +164,7 @@ import { ref, reactive, onMounted, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useAuthStore } from '@/store/auth'
 import { getCities, getDistrictsWithOutlets } from '@/api/auth'
-import { getApplyList, getApplyDetail, auditApply, rejectApply } from '@/api/developer'
+import { getApplyList, getApplyDetail, auditApply } from '@/api/developer'
 
 const props = defineProps({
   mode: {
@@ -212,7 +212,8 @@ const filterOutletOptions = ref([])
 const loadCities = async () => {
   try {
     const res = await getCities()
-    cityOptions.value = res.data || []
+    const data = res.data || []
+    cityOptions.value = Array.isArray(data) ? data : (data.list || data.records || [])
   } catch {
     ElMessage.error('加载地市列表失败')
   }
@@ -224,15 +225,19 @@ const onCityChangeForFilter = async (cityId) => {
   if (!cityId) return
   try {
     const res = await getDistrictsWithOutlets(cityId)
+    console.log('网点API响应:', res)
     const data = res.data || []
+    const list = Array.isArray(data) ? data : (data.list || data.records || [])
     const allOutlets = []
-    data.forEach(item => {
-      if (item.outlets) {
+    list.forEach(item => {
+      if (item.outlets && Array.isArray(item.outlets)) {
         allOutlets.push(...item.outlets)
       }
     })
+    console.log('加载到的网点:', allOutlets.length, allOutlets)
     filterOutletOptions.value = allOutlets
-  } catch {
+  } catch (e) {
+    console.error('加载网点列表失败:', e)
     ElMessage.error('加载网点列表失败')
   }
 }
@@ -332,15 +337,20 @@ const doAudit = async (row, action) => {
   }
 
   try {
+    const level = getAuditLevel()
+    if (!level) {
+      ElMessage.error('无法确定审核级别')
+      return
+    }
     if (isReject) {
-      await rejectApply(row.id, { rejectReason: auditRemark.value || '无' })
-      ElMessage.success('拒绝成功')
+      // 统一使用 auditApply 进行拒绝，支持所有审核级别
+      await auditApply(row.id, {
+        auditLevel: level,
+        status: 'REJECTED',
+        auditRemark: auditRemark.value || ''
+      })
+      ElMessage.success('已拒绝')
     } else {
-      const level = getAuditLevel()
-      if (!level) {
-        ElMessage.error('无法确定审核级别')
-        return
-      }
       await auditApply(row.id, {
         auditLevel: level,
         status: 'APPROVED',
@@ -381,12 +391,24 @@ const handleAuditFromDetail = (action) => {
   doAudit(detailData.value, action)
 }
 
-onMounted(() => {
+onMounted(async () => {
   // 审核模式：自动锁定为当前角色可审核的状态
   if (props.mode === 'audit') {
     queryParams.status = auditStatusMap[currentRole.value] || ''
   }
-  loadCities()
+  await loadCities()
+
+  // 非省分管理员：自动选中管辖地市并加载网点
+  const userInfo = authStore.userInfo || {}
+  if (currentRole.value === 'CITY' && userInfo.scopeCityId) {
+    queryParams.cityId = userInfo.scopeCityId
+    await onCityChangeForFilter(userInfo.scopeCityId)
+  } else if (currentRole.value === 'OUTLET' && userInfo.scopeCityId) {
+    queryParams.cityId = userInfo.scopeCityId
+    await onCityChangeForFilter(userInfo.scopeCityId)
+    queryParams.outletId = userInfo.scopeOutletId || null
+  }
+
   fetchList()
 })
 </script>

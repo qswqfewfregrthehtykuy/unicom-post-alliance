@@ -55,21 +55,21 @@
           />
         </el-form-item>
         <el-form-item label="状态">
-          <el-select v-model="queryParams.status" placeholder="全部状态" clearable style="width: 110px">
+          <el-select v-model="queryParams.status" placeholder="全部状态" clearable>
             <el-option label="待结算" value="PENDING" />
             <el-option label="已结算" value="SETTLED" />
             <el-option label="冻结" value="FROZEN" />
           </el-select>
         </el-form-item>
         <el-form-item label="收款方类型">
-          <el-select v-model="queryParams.payeeType" placeholder="全部类型" clearable style="width: 110px">
+          <el-select v-model="queryParams.payeeType" placeholder="全部类型" clearable>
             <el-option label="发展人" value="DEVELOPER" />
             <el-option label="网点" value="OUTLET" />
             <el-option label="平台留存" value="PLATFORM" />
           </el-select>
         </el-form-item>
         <el-form-item label="阶段">
-          <el-select v-model="queryParams.commissionPhase" placeholder="全部阶段" clearable style="width: 100px">
+          <el-select v-model="queryParams.commissionPhase" placeholder="全部阶段" clearable>
             <el-option label="意向" value="LEAD" />
             <el-option label="正式" value="FORMAL" />
           </el-select>

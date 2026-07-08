@@ -360,6 +360,11 @@ public class DeveloperApplyServiceImpl extends ServiceImpl<BizDeveloperApplyMapp
         }
         // PROVINCE 管理员：无额外限制，使用请求中的参数
 
+        // 默认发展人类型为 SELF_EMPLOYED（自营网点人员）
+        if (!StringUtils.hasText(request.getDeveloperType())) {
+            request.setDeveloperType("SELF_EMPLOYED");
+        }
+
         // 1. 校验手机号未被注册
         if (userService.findByPhone(request.getApplicantPhone()) != null) {
             throw new BusinessException("手机号已被注册，无法创建");
@@ -412,6 +417,7 @@ public class DeveloperApplyServiceImpl extends ServiceImpl<BizDeveloperApplyMapp
         user.setPhone(request.getApplicantPhone());
         user.setIdCard(request.getIdCard());
         user.setDataScopeType("OUTLET");
+        user.setScopeCityId(request.getCityId());
         user.setScopeOutletId(request.getOutletId());
         user.setStatus(1);
         userService.save(user);
@@ -492,6 +498,7 @@ public class DeveloperApplyServiceImpl extends ServiceImpl<BizDeveloperApplyMapp
         user.setPhone(apply.getApplicantPhone());
         user.setIdCard(apply.getIdCard());
         user.setDataScopeType("OUTLET");
+        user.setScopeCityId(apply.getCityId());
         user.setScopeOutletId(apply.getOutletId());
         user.setStatus(1);
         userService.save(user);

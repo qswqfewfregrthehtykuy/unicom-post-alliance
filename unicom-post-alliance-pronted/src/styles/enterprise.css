@@ -247,6 +247,16 @@ html, body, #app {
   border-radius: var(--radius-sm) !important;
 }
 
+/* --- 统一 el-select 宽度 --- */
+/* 行内表单（搜索/筛选栏）：固定宽度，美观统一 */
+.el-form--inline .el-select {
+  width: 160px;
+}
+/* 标准表单：填满表单项宽度 */
+.el-form:not(.el-form--inline) .el-form-item .el-select {
+  width: 100%;
+}
+
 /* --- 对话框 --- */
 .el-dialog {
   border-radius: var(--radius-lg) !important;

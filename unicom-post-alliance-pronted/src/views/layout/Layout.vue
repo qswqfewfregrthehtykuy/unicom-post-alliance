@@ -66,7 +66,6 @@
               <el-icon><CirclePlus /></el-icon>
               <template #title>直接创建发展人</template>
             </el-menu-item>
-            <el-menu-item v-if="isRole('ROLE_OUTLET')" index="/developer/apply">发展人申请</el-menu-item>
             <el-menu-item index="/developer/audit">发展人审核</el-menu-item>
             <el-menu-item v-if="isAnyRole(['ROLE_PROVINCE','ROLE_CITY'])" index="/developer/list">发展人列表</el-menu-item>
           </el-sub-menu>

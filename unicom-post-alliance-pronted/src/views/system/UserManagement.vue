@@ -4,7 +4,7 @@
     <el-card shadow="never" class="search-card">
       <el-form :inline="true" :model="queryParams" class="search-form">
         <el-form-item label="角色类型">
-          <el-select v-model="queryParams.role" placeholder="全部角色" clearable style="width: 150px">
+          <el-select v-model="queryParams.role" placeholder="全部角色" clearable>
             <el-option label="省分管理员" value="ROLE_PROVINCE" />
             <el-option label="地市管理员" value="ROLE_CITY" />
             <el-option label="网点管理员" value="ROLE_OUTLET" />
@@ -14,13 +14,13 @@
         </el-form-item>
 
         <el-form-item label="所属地市">
-          <el-select v-model="queryParams.cityId" placeholder="全部地市" clearable style="width: 150px">
+          <el-select v-model="queryParams.cityId" placeholder="全部地市" clearable>
             <el-option v-for="item in cityOptions" :key="item.id" :label="item.name" :value="item.id" />
           </el-select>
         </el-form-item>
 
         <el-form-item label="账号状态">
-          <el-select v-model="queryParams.status" placeholder="全部" clearable style="width: 100px">
+          <el-select v-model="queryParams.status" placeholder="全部" clearable>
             <el-option label="启用" :value="1" />
             <el-option label="禁用" :value="0" />
           </el-select>

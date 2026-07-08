@@ -19,8 +19,7 @@ public class DeveloperCreateRequest {
     @NotBlank(message = "身份证号不能为空")
     private String idCard;
 
-    @NotBlank(message = "发展人类型不能为空")
-    private String developerType;   // FREE_SHOP / SELF_EMPLOYED
+    private String developerType;   // 固定为 SELF_EMPLOYED（自营网点人员），前端不再选择
 
     @NotNull(message = "地市不能为空")
     private Long cityId;

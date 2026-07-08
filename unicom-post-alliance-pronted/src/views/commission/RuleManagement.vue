@@ -4,7 +4,7 @@
     <el-card shadow="never" class="filter-card">
       <el-form :model="queryParams" inline>
         <el-form-item label="业务类型">
-          <el-select v-model="queryParams.businessType" placeholder="全部" clearable style="width: 150px">
+          <el-select v-model="queryParams.businessType" placeholder="全部" clearable>
             <el-option
                 v-for="item in businessTypeOptions"
                 :key="item.value"
@@ -14,7 +14,7 @@
           </el-select>
         </el-form-item>
         <el-form-item label="发展来源">
-          <el-select v-model="queryParams.developSource" placeholder="全部" clearable style="width: 150px">
+          <el-select v-model="queryParams.developSource" placeholder="全部" clearable>
             <el-option
                 v-for="item in developSourceOptions"
                 :key="item.value"

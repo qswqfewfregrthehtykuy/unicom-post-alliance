@@ -31,6 +31,7 @@ public interface BizDevelopmentOrderMappera extends BaseMapper<BizDevelopmentOrd
             "    <otherwise> DATE(o.created_at) AS dimensionId, DATE(o.created_at) AS dimensionName </otherwise> " +
             "  </choose> " +
             "  , COUNT(1) AS developmentCount " +
+            "  , COUNT(1) AS orderCount " +
             "  , SUM(CASE WHEN o.business_type = 'MOBILE_CARD' THEN 1 ELSE 0 END) AS mobileCardCount " +
             "  , SUM(CASE WHEN o.business_type = 'BROADBAND' THEN 1 ELSE 0 END) AS broadbandCount " +
             "  , SUM(CASE WHEN o.business_type = 'OTHER' THEN 1 ELSE 0 END) AS otherCount " +
