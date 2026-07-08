@@ -387,18 +387,23 @@ public class BizOrderServiceImpl extends ServiceImpl<BizDevelopmentOrderMapper, 
      */
     private BizCommissionRule findMatchingRule(String businessType, String developSource, String phase) {
         LocalDate today = LocalDate.now();
+        log.info("查找佣金规则: businessType={}, developSource={}, phase={}, today={}",
+                businessType, developSource, phase, today);
+
         LambdaQueryWrapper<BizCommissionRule> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(BizCommissionRule::getBusinessType, businessType)
                 .eq(BizCommissionRule::getDevelopSource, developSource)
                 .eq(BizCommissionRule::getCommissionPhase, phase)
-                .eq(BizCommissionRule::getStatus, 1)          // 启用
+                .eq(BizCommissionRule::getStatus, 1)
                 .eq(BizCommissionRule::getIsDeleted, 0)
                 .le(BizCommissionRule::getEffectiveDate, today)
                 .and(w -> w.isNull(BizCommissionRule::getExpiryDate)
                         .or().ge(BizCommissionRule::getExpiryDate, today))
-                .orderByDesc(BizCommissionRule::getEffectiveDate)  // 取最新生效的
+                .orderByDesc(BizCommissionRule::getEffectiveDate)
                 .last("LIMIT 1");
-        return commissionRuleService.getOne(wrapper);
+        BizCommissionRule rule = commissionRuleService.getOne(wrapper);
+        log.info("查找结果: {}", rule != null ? "找到规则 [" + rule.getRuleName() + "]" : "未找到匹配规则");
+        return rule;
     }
 
 

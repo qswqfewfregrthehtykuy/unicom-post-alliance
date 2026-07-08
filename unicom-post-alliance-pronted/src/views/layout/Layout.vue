@@ -5,12 +5,10 @@
       <div class="sidebar-header">
         <transition name="fade">
           <div v-show="!isCollapse" class="logo-area">
-            <span class="logo-icon">🇨🇳</span>
             <span class="logo-text">联通邮政商盟触点系统</span>
           </div>
         </transition>
         <div v-show="isCollapse" class="logo-area logo-collapsed">
-          <span class="logo-icon">🇨🇳</span>
         </div>
       </div>
 
@@ -28,7 +26,7 @@
           <!-- 首页 -->
           <el-menu-item index="/dashboard">
             <el-icon><Monitor /></el-icon>
-            <template #title>首页 Dashboard</template>
+            <template #title>首页</template>
           </el-menu-item>
 
           <!-- 个人中心 -->
