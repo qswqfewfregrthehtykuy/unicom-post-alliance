@@ -2,6 +2,7 @@ package com.unicom.post.modules.developer.controller;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.unicom.post.common.result.Result;
+import com.unicom.post.common.utils.PrivacyUtils;
 import com.unicom.post.common.utils.SecurityUtils;
 import com.unicom.post.modules.auth.domain.UserPrincipal;
 import com.unicom.post.modules.auth.domain.entity.SysUser;
@@ -132,7 +133,7 @@ public class DeveloperController {
             // 查询关联用户的真实姓名
             SysUser user = userService.getById(dev.getUserId());
             item.put("name", user != null ? user.getRealName() : "未知");
-            item.put("phone", user != null ? user.getPhone() : "");
+            item.put("phone", user != null ? PrivacyUtils.maskPhone(user.getPhone()) : "");
             result.add(item);
         }
         return Result.success(result);

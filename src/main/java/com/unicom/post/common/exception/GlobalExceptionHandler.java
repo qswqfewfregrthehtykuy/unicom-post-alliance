@@ -2,6 +2,7 @@ package com.unicom.post.common.exception;
 
 import com.unicom.post.common.result.Result;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.validation.FieldError;
@@ -36,6 +37,15 @@ public class GlobalExceptionHandler {
                 .map(FieldError::getDefaultMessage)
                 .collect(Collectors.joining("; "));
         return Result.error(400, msg);
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public Result<?> handleHttpMessageNotReadableException(HttpMessageNotReadableException e) {
+        log.warn("请求参数解析失败: {}", e.getMessage());
+        String detail = e.getMostSpecificCause() != null
+                ? e.getMostSpecificCause().getMessage()
+                : e.getMessage();
+        return Result.error(400, "请求参数格式错误: " + detail);
     }
 
     @ExceptionHandler(Exception.class)

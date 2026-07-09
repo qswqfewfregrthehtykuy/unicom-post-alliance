@@ -103,7 +103,7 @@ public class BizOrderController {
             Map<String, Object> data = new HashMap<>();
             data.put("orderId", order.getId());
             data.put("orderNo", order.getOrderNo());
-            data.put("customerPhone", order.getCustomerPhone());
+            data.put("customerPhone", com.unicom.post.common.utils.PrivacyUtils.maskPhone(order.getCustomerPhone()));
             data.put("leadStatus", order.getLeadStatus());
             data.put("isDuplicate", false);
             data.put("createdAt", order.getCreatedAt());

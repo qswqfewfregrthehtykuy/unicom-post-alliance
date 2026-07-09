@@ -11,12 +11,16 @@ import com.unicom.post.modules.auth.service.SysUserService;
 import com.unicom.post.modules.system.dto.UserCreateRequest;
 import com.unicom.post.modules.system.dto.UserUpdateRequest;
 import com.unicom.post.modules.system.service.SysOperationLogService;
+import com.unicom.post.modules.system.vo.SysUserVO;
+import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.validation.Valid;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/v1/users")
@@ -34,26 +38,35 @@ public class UserManagementController {
 
     @GetMapping
     @PreAuthorize("hasRole('PROVINCE')")
-    public Result<Page<SysUser>> listUsers(@RequestParam(required = false) String role,
-                                           @RequestParam(required = false) Long cityId,
-                                           @RequestParam(required = false) Integer status,
-                                           @RequestParam(required = false) String keyword,
-                                           @RequestParam(defaultValue = "1") Integer pageNo,
-                                           @RequestParam(defaultValue = "20") Integer pageSize) {
+    public Result<Page<SysUserVO>> listUsers(@RequestParam(required = false) String role,
+                                             @RequestParam(required = false) Long cityId,
+                                             @RequestParam(required = false) Integer status,
+                                             @RequestParam(required = false) String keyword,
+                                             @RequestParam(defaultValue = "1") Integer pageNo,
+                                             @RequestParam(defaultValue = "20") Integer pageSize) {
         Page<SysUser> page = userService.queryUserList(role, cityId, status, keyword, pageNo, pageSize);
-        return Result.success(page);
+        // 转换为 VO，Jackson 序列化时自动脱敏
+        List<SysUserVO> voList = page.getRecords().stream()
+                .map(this::toVO)
+                .collect(Collectors.toList());
+        Page<SysUserVO> voPage = new Page<>(pageNo, pageSize, page.getTotal());
+        voPage.setRecords(voList);
+        return Result.success(voPage);
     }
 
     @PostMapping
     @PreAuthorize("hasRole('PROVINCE')")
-    public Result<SysUser> createUser(@Valid @RequestBody UserCreateRequest request,
-                                       HttpServletRequest httpRequest) {
+    public Result<SysUserVO> createUser(@Valid @RequestBody UserCreateRequest request,
+                                         HttpServletRequest httpRequest) {
         String ip = IpUtils.getClientIp(httpRequest);
         try {
             SysUser user = userService.createUser(request);
+            // 操作日志记录明文数据（审计需要），不返回给前端
             operationLogService.logDetail("USER", "创建用户", user.getId(), "User",
                     "创建用户成功", null, toJson(user), ip, "SUCCESS", null);
-            return Result.success("账号创建成功，初始密码已发送至手机", user);
+            SysUserVO vo = toVO(user);
+            vo.setTempPassword(user.getTempPassword()); // 仅创建时返回初始密码
+            return Result.success("账号创建成功，初始密码已发送至手机", vo);
         } catch (Exception e) {
             operationLogService.log("USER", "创建用户", null, "创建用户失败",
                     ip, "FAIL", e.getMessage());
@@ -127,6 +140,13 @@ public class UserManagementController {
                     "删除用户失败", beforeData, null, ip, "FAIL", e.getMessage());
             throw e;
         }
+    }
+
+    /** SysUser → SysUserVO，Jackson 序列化时自动脱敏 */
+    private SysUserVO toVO(SysUser user) {
+        SysUserVO vo = new SysUserVO();
+        BeanUtils.copyProperties(user, vo);
+        return vo;
     }
 
     private String toJson(Object obj) {

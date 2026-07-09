@@ -1,5 +1,7 @@
 package com.unicom.post.modules.developer.dto;
 
+import com.unicom.post.common.annotation.PrivacyMask;
+import com.unicom.post.common.enums.MaskType;
 import lombok.Data;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -8,8 +10,14 @@ import java.util.List;
 public class DeveloperApplyResponse {
     private Long id;
     private String applyNo;
+
+    @PrivacyMask(MaskType.NAME)
     private String applicantName;
+
+    @PrivacyMask(MaskType.PHONE)
     private String applicantPhone;
+
+    @PrivacyMask(MaskType.ID_CARD)
     private String idCard;
     private String developerType;
     private Long cityId;

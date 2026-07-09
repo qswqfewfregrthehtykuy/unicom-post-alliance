@@ -207,7 +207,7 @@ public class AuthController {
                 data.put("username", user.getUsername());
                 data.put("tempPassword", newPassword);
                 data.put("smsStatus", "sent");
-                data.put("smsPhone", user.getPhone());
+                data.put("smsPhone", com.unicom.post.common.utils.PrivacyUtils.maskPhone(user.getPhone()));
                 data.put("expiryTime", LocalDateTime.now().plusHours(24).toString());
 
                 operationLogService.log(module, action, userId, "重置密码成功（自动生成）", ip, "SUCCESS", null);

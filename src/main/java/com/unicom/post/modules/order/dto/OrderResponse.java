@@ -1,5 +1,7 @@
 package com.unicom.post.modules.order.dto;
 
+import com.unicom.post.common.annotation.PrivacyMask;
+import com.unicom.post.common.enums.MaskType;
 import lombok.Data;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -12,9 +14,16 @@ public class OrderResponse {
     private String developerName;
     private String businessType;
     private String developSource;
+
+    @PrivacyMask(MaskType.NAME)
     private String customerName;
+
+    @PrivacyMask(MaskType.PHONE)
     private String customerPhone;
+
+    @PrivacyMask(MaskType.ID_CARD)
     private String customerIdCard;
+
     private String customerAddress;
     private String leadStatus;
     private String formalStatus;
